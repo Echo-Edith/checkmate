@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { LESSONS } from "@/lib/content/lessons";
 import type { Difficulty } from "@/lib/content/puzzles";
+import { PieceLineup } from "@/components/chess/PieceLineup";
 import { getProgress } from "@/lib/db/progress";
 
 export const metadata: Metadata = { title: "Lessons — Checkm8" };
@@ -40,6 +41,11 @@ export default async function LessonsPage() {
           {completed.length > 0 ? "Continue" : "Start"}: {upNext.title} →
         </Link>
       )}
+
+      <section className="card mt-6 p-4" aria-label="The pieces">
+        <h2 className="mb-3 text-sm font-semibold">The pieces</h2>
+        <PieceLineup />
+      </section>
 
       {LEVELS.map((level) => (
         <section key={level.key} className="mt-8">

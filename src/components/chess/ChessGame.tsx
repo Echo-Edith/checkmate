@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Color, Square } from "chess.js";
 import { ChessBoard } from "@/components/chess/ChessBoard";
+import { PieceLineup } from "@/components/chess/PieceLineup";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
 import {
   getStatus,
@@ -22,7 +23,7 @@ import { SpeakerIcon } from "@/components/SpeakButton";
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
 
 type Mode = "pvp" | "computer";
-type Tab = "moves" | "setup";
+type Tab = "moves" | "pieces" | "setup";
 
 /** `ms` is the engine's thinking time. Short times keep the game snappy, and weaker levels play fast. */
 const LEVELS = [
@@ -303,6 +304,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
 
   const tabs: Array<{ key: Tab; label: string }> = [
     { key: "moves", label: "Moves" },
+    { key: "pieces", label: "Pieces" },
     { key: "setup", label: "Setup" },
   ];
 
@@ -459,6 +461,8 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
                 ))}
               </div>
             ))}
+
+          {tab === "pieces" && <PieceLineup compact />}
 
           {tab === "setup" && (
             <fieldset className="space-y-3 text-sm" disabled={gameInProgress}>

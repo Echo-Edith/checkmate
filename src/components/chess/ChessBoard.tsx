@@ -133,12 +133,15 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
     <>
       <div
         ref={boardRef}
-        className="relative grid w-full max-w-[600px] select-none grid-cols-8 overflow-hidden rounded-md border"
+        className="relative grid w-full select-none overflow-hidden rounded-md border"
         style={{
           borderColor: "var(--border)",
           containerType: "inline-size",
           touchAction: "none",
           aspectRatio: "1 / 1",
+          // Fixed equal tracks: empty rows and columns must never collapse.
+          gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+          gridTemplateRows: "repeat(8, minmax(0, 1fr))",
         }}
         role="grid"
         aria-label="Chessboard"

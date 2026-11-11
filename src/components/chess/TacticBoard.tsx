@@ -84,7 +84,7 @@ export function TacticBoard({ fen, lines, mateAny, onSolved, onFailed, solvedMes
         timer.current = setTimeout(() => {
           setHistory((h) => [...h, reply]);
           setWaiting(false);
-        }, 450);
+        }, 250);
       }
     },
     [status, waiting, game, userMoves, fen, lines, mateAny, onFailed, onSolved],

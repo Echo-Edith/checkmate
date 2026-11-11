@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPuzzle } from "@/lib/content/puzzles";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { askGemini, GeminiError } from "@/lib/tutor/gemini";
+import { GeminiError, streamGemini } from "@/lib/tutor/gemini";
 import { buildSystemPrompt, buildUserPrompt, isValidFen } from "@/lib/tutor/prompts";
 import { tutorRequestSchema } from "@/lib/tutor/schema";
 
@@ -43,8 +43,10 @@ export async function POST(request: NextRequest) {
       prompt = buildUserPrompt({ request: data });
     }
 
-    const reply = await askGemini(buildSystemPrompt(prompt.persona), prompt.text);
-    return NextResponse.json({ reply });
+    const stream = await streamGemini(buildSystemPrompt(prompt.persona), prompt.text);
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
   } catch (error) {
     if (error instanceof GeminiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

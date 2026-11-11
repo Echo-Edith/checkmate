@@ -37,13 +37,9 @@ export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {saveMessage && (
-        <p
-          role="status"
-          className="rounded-md border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-        >
+        <p role="status" className="mx-auto max-w-[680px] rounded-md border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
           {saveMessage}{" "}
           {loggedIn && saveMessage.startsWith("Game saved") && (
             <Link href="/analyze" className="underline">
@@ -54,9 +50,7 @@ export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
       )}
       <ChessGame
         onGameFinished={handleFinished}
-        renderExtras={({ fen, getEngineFacts }) => (
-          <TutorPanel fen={fen} loggedIn={loggedIn} getEngineFacts={getEngineFacts} />
-        )}
+        renderTutor={({ fen, getEngineFacts }) => <TutorPanel fen={fen} loggedIn={loggedIn} getEngineFacts={getEngineFacts} />}
       />
     </div>
   );

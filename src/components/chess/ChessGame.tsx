@@ -19,13 +19,15 @@ import { useStockfish } from "@/lib/engine/useStockfish";
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
 
 type Mode = "pvp" | "computer";
+type Tab = "moves" | "tutor" | "setup";
 
+/** `ms` is the engine's thinking time. Short times keep the game snappy, and weaker levels play fast. */
 const LEVELS = [
-  { label: "Beginner", skill: 1 },
-  { label: "Casual", skill: 6 },
-  { label: "Club", skill: 12 },
-  { label: "Strong", skill: 17 },
-  { label: "Maximum", skill: 20 },
+  { label: "Beginner", skill: 1, ms: 150 },
+  { label: "Casual", skill: 6, ms: 250 },
+  { label: "Club", skill: 12, ms: 400 },
+  { label: "Strong", skill: 17, ms: 600 },
+  { label: "Maximum", skill: 20, ms: 800 },
 ] as const;
 
 const buttonClass =
@@ -43,22 +45,20 @@ export interface FinishedGame {
 interface ChessGameProps {
   /** Called once when a game ends (checkmate, draw or resignation). */
   onGameFinished?: (game: FinishedGame) => void;
-  /** Extra content rendered under the controls (e.g. the AI tutor). */
-  renderExtras?: (context: {
+  /** Content for the "Tutor" tab. */
+  renderTutor?: (context: {
     fen: string;
-    moves: readonly PlayedMove[];
-    playerColor: Color;
-    statusText: string;
     /** Runs Stockfish on the current position. Resolves to null if the engine is unavailable. */
     getEngineFacts: () => Promise<EngineFacts | null>;
   }) => ReactNode;
 }
 
-export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
+export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
   const [moves, setMoves] = useState<PlayedMove[]>([]);
   const [viewIndex, setViewIndex] = useState(0);
   const [orientation, setOrientation] = useState<Color>("w");
   const [pending, setPending] = useState<{ from: Square; to: Square } | null>(null);
+  const [tab, setTab] = useState<Tab>("moves");
 
   const [mode, setMode] = useState<Mode>("computer");
   const [playerColor, setPlayerColor] = useState<Color>("w");
@@ -127,7 +127,7 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
     setThinking(true);
 
     instance
-      .analyze(game.fen(), { movetime: 700, skill: level.skill })
+      .analyze(game.fen(), { movetime: level.ms, skill: level.skill })
       .then((result) => {
         if (cancelled) return;
         const move = parseUci(result.bestMove);
@@ -142,7 +142,7 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
       cancelled = true;
       setThinking(false);
     };
-  }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, engine, commitMove]);
+  }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, level.ms, engine, commitMove]);
 
   // Clear the hint whenever the position changes.
   useEffect(() => {
@@ -178,7 +178,7 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
     if (!instance || hintBusy) return;
     setHintBusy(true);
     try {
-      const result = await instance.analyze(fen, { depth: 12, skill: 20 });
+      const result = await instance.analyze(fen, { movetime: 600, skill: 20 });
       const san = uciToSan(fen, result.bestMove);
       setHint(san ? `Best move: ${san} (${formatScore(result.score)})` : "No hint available.");
     } catch {
@@ -201,6 +201,8 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
   // Keyboard navigation through the move history.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA")) return;
       if (event.key === "ArrowLeft") setViewIndex((i) => Math.max(0, i - 1));
       else if (event.key === "ArrowRight") setViewIndex((i) => Math.min(moves.length, i + 1));
       else if (event.key === "Home") setViewIndex(0);
@@ -212,6 +214,7 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
 
   const humanTurn = mode === "pvp" || game.turn() === playerColor;
   const interactive = isLatest && !status.over && pending === null && humanTurn && !thinking;
+  const gameInProgress = moves.length > 0 && !status.over;
 
   const rows: Array<{ number: number; white: PlayedMove | undefined; black: PlayedMove | undefined }> = [];
   for (let i = 0; i < moves.length; i += 2) {
@@ -233,11 +236,37 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
     );
   }
 
-  const gameInProgress = moves.length > 0 && !status.over;
+  // One short line that always says what is happening, so nothing hides below the fold.
+  const statusLine = thinking
+    ? "Computer is thinking…"
+    : mode === "computer" && engineStatus === "loading"
+      ? "Loading chess engine…"
+      : status.text;
+
+  const tabs: Array<{ key: Tab; label: string }> = [
+    { key: "moves", label: "Moves" },
+    { key: "tutor", label: "Tutor" },
+    { key: "setup", label: "Setup" },
+  ];
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="w-full max-w-[600px]">
+    <div className="grid gap-4 lg:grid-cols-[auto_24rem] lg:items-start lg:justify-center">
+      {/* Board column: sized to the screen so the board is large but never needs scrolling */}
+      <div className="mx-auto space-y-2" style={{ width: "min(calc(100vw - 2rem), calc(100svh - 12rem), 680px)", minWidth: "17rem" }}>
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          style={{ ...borderStyle, background: "var(--surface)" }}
+        >
+          <span>{statusLine}</span>
+          {!isLatest && (
+            <button type="button" onClick={() => setViewIndex(moves.length)} className="text-xs underline" style={{ color: "var(--muted)" }}>
+              Back to game
+            </button>
+          )}
+        </div>
+
         <ChessBoard
           game={game}
           orientation={orientation}
@@ -245,112 +274,16 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
           lastMove={lastMove}
           onMove={handleMove}
         />
-      </div>
 
-      <aside className="w-full max-w-[600px] space-y-4 lg:w-80">
-        <div
-          role="status"
-          aria-live="polite"
-          className="rounded-lg border p-4 text-sm font-medium"
-          style={{ ...borderStyle, background: "var(--surface)" }}
-        >
-          {status.text}
-          {thinking && (
-            <p className="mt-1 text-xs font-normal" style={{ color: "var(--muted)" }}>
-              Computer is thinking…
-            </p>
-          )}
-          {!isLatest && (
-            <p className="mt-1 text-xs font-normal" style={{ color: "var(--muted)" }}>
-              Viewing move {viewIndex} of {moves.length}. Go to the last move to keep playing.
-            </p>
-          )}
-          {mode === "computer" && engineStatus === "loading" && (
-            <p className="mt-1 text-xs font-normal" style={{ color: "var(--muted)" }}>
-              Loading chess engine…
-            </p>
-          )}
-          {engineStatus === "error" && (
-            <p role="alert" className="mt-1 text-xs font-normal text-red-500">
-              {engineError} Switch to two-player mode, or check that the engine files were installed.
-            </p>
-          )}
-        </div>
-
-        <fieldset
-          className="space-y-3 rounded-lg border p-3 text-sm"
-          style={borderStyle}
-          disabled={gameInProgress}
-        >
-          <legend className="px-1 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-            Game setup {gameInProgress && "(locked during a game)"}
-          </legend>
-          <label className="flex items-center justify-between gap-2">
-            Opponent
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value as Mode)}
-              className="rounded-md border bg-transparent px-2 py-1"
-              style={borderStyle}
-            >
-              <option value="computer">Computer</option>
-              <option value="pvp">Two players</option>
-            </select>
-          </label>
-          {mode === "computer" && (
-            <>
-              <label className="flex items-center justify-between gap-2">
-                Difficulty
-                <select
-                  value={levelIndex}
-                  onChange={(e) => setLevelIndex(Number(e.target.value))}
-                  className="rounded-md border bg-transparent px-2 py-1"
-                  style={borderStyle}
-                >
-                  {LEVELS.map((item, index) => (
-                    <option key={item.label} value={index}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center justify-between gap-2">
-                You play
-                <select
-                  value={playerColor}
-                  onChange={(e) => startNewGame(e.target.value as Color)}
-                  className="rounded-md border bg-transparent px-2 py-1"
-                  style={borderStyle}
-                >
-                  <option value="w">White</option>
-                  <option value="b">Black</option>
-                </select>
-              </label>
-            </>
-          )}
-        </fieldset>
-
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={buttonClass} style={borderStyle} disabled={viewIndex === 0} onClick={() => setViewIndex(0)} aria-label="First move">
-            «
-          </button>
+        <div className="flex flex-wrap items-center gap-1.5">
           <button type="button" className={buttonClass} style={borderStyle} disabled={viewIndex === 0} onClick={() => setViewIndex((i) => Math.max(0, i - 1))} aria-label="Previous move">
             ‹
           </button>
           <button type="button" className={buttonClass} style={borderStyle} disabled={isLatest} onClick={() => setViewIndex((i) => Math.min(moves.length, i + 1))} aria-label="Next move">
             ›
           </button>
-          <button type="button" className={buttonClass} style={borderStyle} disabled={isLatest} onClick={() => setViewIndex(moves.length)} aria-label="Last move">
-            »
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
           <button type="button" className={buttonClass} style={borderStyle} onClick={() => setOrientation((o) => (o === "w" ? "b" : "w"))}>
-            Flip board
-          </button>
-          <button type="button" className={buttonClass} style={borderStyle} onClick={() => startNewGame()}>
-            New game
+            Flip
           </button>
           <button
             type="button"
@@ -359,7 +292,7 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
             disabled={engineStatus !== "ready" || hintBusy || status.over || !humanTurn || !isLatest}
             onClick={requestHint}
           >
-            {hintBusy ? "Analysing…" : "Hint"}
+            {hintBusy ? "…" : "Hint"}
           </button>
           <button
             type="button"
@@ -370,50 +303,103 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
           >
             Resign
           </button>
+          <button type="button" className={`${buttonClass} ml-auto`} style={{ ...borderStyle, background: "var(--accent)", color: "#fff" }} onClick={() => startNewGame()}>
+            New game
+          </button>
         </div>
 
         {hint && (
-          <p className="rounded-lg border p-3 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
+          <p className="rounded-md border px-3 py-2 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
             {hint}
           </p>
         )}
+        {engineStatus === "error" && (
+          <p role="alert" className="text-xs text-red-500">
+            {engineError} Switch to two-player mode in Setup, or check that the engine files were installed.
+          </p>
+        )}
+      </div>
 
-        <div
-          className="max-h-60 overflow-y-auto rounded-lg border p-2"
-          style={{ ...borderStyle, background: "var(--surface)" }}
-        >
-          {rows.length === 0 ? (
-            <p className="p-2 text-sm" style={{ color: "var(--muted)" }}>
-              Moves will appear here.
-            </p>
-          ) : (
-            <div className="grid grid-cols-[2rem_1fr_1fr] items-center gap-y-0.5">
-              {rows.map((row) => (
-                <FragmentRow key={row.number} number={row.number}>
-                  {moveButton(row.white, (row.number - 1) * 2)}
-                  {moveButton(row.black, (row.number - 1) * 2 + 1)}
-                </FragmentRow>
-              ))}
-            </div>
-          )}
+      {/* Side panel: tabs keep moves, tutor and setup one tap away without long scrolling */}
+      <aside className="rounded-lg border" style={borderStyle}>
+        <div className="flex border-b" style={borderStyle} role="tablist">
+          {tabs.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className="flex-1 px-3 py-2 text-sm font-medium"
+              style={{
+                borderBottom: `2px solid ${tab === item.key ? "var(--accent)" : "transparent"}`,
+                color: tab === item.key ? "inherit" : "var(--muted)",
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
-        {renderExtras?.({
-          fen,
-          moves,
-          playerColor: mode === "computer" ? playerColor : game.turn(),
-          statusText: status.text,
-          getEngineFacts,
-        })}
+        <div className="h-72 overflow-y-auto p-3 lg:h-[min(36rem,calc(100svh-12rem))]">
+          {tab === "moves" &&
+            (rows.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                Moves will appear here.
+              </p>
+            ) : (
+              <div className="grid grid-cols-[2rem_1fr_1fr] items-center gap-y-0.5">
+                {rows.map((row) => (
+                  <FragmentRow key={row.number} number={row.number}>
+                    {moveButton(row.white, (row.number - 1) * 2)}
+                    {moveButton(row.black, (row.number - 1) * 2 + 1)}
+                  </FragmentRow>
+                ))}
+              </div>
+            ))}
+
+          {tab === "tutor" && renderTutor?.({ fen, getEngineFacts })}
+
+          {tab === "setup" && (
+            <fieldset className="space-y-3 text-sm" disabled={gameInProgress}>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                {gameInProgress ? "Settings are locked during a game. Start a new game to change them." : "Choose your opponent, then make a move."}
+              </p>
+              <label className="flex items-center justify-between gap-2">
+                Opponent
+                <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} className="rounded-md border bg-transparent px-2 py-1" style={borderStyle}>
+                  <option value="computer">Computer</option>
+                  <option value="pvp">Two players</option>
+                </select>
+              </label>
+              {mode === "computer" && (
+                <>
+                  <label className="flex items-center justify-between gap-2">
+                    Difficulty
+                    <select value={levelIndex} onChange={(e) => setLevelIndex(Number(e.target.value))} className="rounded-md border bg-transparent px-2 py-1" style={borderStyle}>
+                      {LEVELS.map((item, index) => (
+                        <option key={item.label} value={index}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center justify-between gap-2">
+                    You play
+                    <select value={playerColor} onChange={(e) => startNewGame(e.target.value as Color)} className="rounded-md border bg-transparent px-2 py-1" style={borderStyle}>
+                      <option value="w">White</option>
+                      <option value="b">Black</option>
+                    </select>
+                  </label>
+                </>
+              )}
+            </fieldset>
+          )}
+        </div>
       </aside>
 
       {pending && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose promotion piece"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Choose promotion piece">
           <div className="rounded-lg border p-4" style={{ ...borderStyle, background: "var(--background)" }}>
             <p className="mb-3 text-sm font-medium">Promote pawn to</p>
             <div className="flex gap-2">

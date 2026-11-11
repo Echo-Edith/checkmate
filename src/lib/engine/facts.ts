@@ -11,8 +11,9 @@ export interface EngineFacts {
   depth: number;
 }
 
-export async function getEngineFacts(engine: StockfishEngine, fen: string, depth = 14): Promise<EngineFacts> {
-  const result = await engine.analyze(fen, { depth, skill: 20 });
+/** A short search (about half a second) is plenty for tutor facts and keeps answers quick. */
+export async function getEngineFacts(engine: StockfishEngine, fen: string, movetime = 500): Promise<EngineFacts> {
+  const result = await engine.analyze(fen, { movetime, skill: 20 });
 
   const game = new Chess(fen);
   const line: string[] = [];

@@ -89,6 +89,25 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   const { status: engineStatus, error: engineError, engine } = useStockfish(true);
   const voice = useVoice();
 
+  // Assist = best-move hints, the hint arrow and the tutor. It exists only against the bot, and the player can switch it off.
+  const [assist, setAssist] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("checkm8:assist") === "off") setAssist(false);
+    } catch {
+      // Default (on) is fine.
+    }
+  }, []);
+  function changeAssist(on: boolean) {
+    setAssist(on);
+    try {
+      localStorage.setItem("checkm8:assist", on ? "on" : "off");
+    } catch {
+      // Not saving is fine.
+    }
+  }
+  const assistOn = mode === "computer" && assist;
+
   const level = LEVELS[levelIndex] ?? LEVELS[1];
   const game = useMemo(() => replay(moves, viewIndex), [moves, viewIndex]);
   const baseStatus = useMemo(() => getStatus(game), [game]);
@@ -194,10 +213,10 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     };
   }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, level.ms, level.depth, level.elo, level.blunder, engine, commitMove]);
 
-  // Clear the hint whenever the position changes.
+  // Clear the hint whenever the position changes, or when assist is turned off.
   useEffect(() => {
     setHint(null);
-  }, [fen]);
+  }, [fen, assistOn]);
 
   // Say the result out loud when the game ends.
   const sayRef = useRef(voice.say);
@@ -382,7 +401,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           lastMove={lastMove}
           onMove={handleMove}
           animate={animate}
-          hint={hint ? { from: hint.from, to: hint.to } : null}
+          hint={assistOn && hint ? { from: hint.from, to: hint.to } : null}
         />
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -395,6 +414,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           <button type="button" className={buttonClass} style={borderStyle} onClick={() => setOrientation((o) => (o === "w" ? "b" : "w"))}>
             Flip
           </button>
+          {assistOn && (
           <button
             type="button"
             className={buttonClass}
@@ -404,6 +424,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           >
             {hintBusy ? "…" : hint ? "Hide hint" : "Best move"}
           </button>
+          )}
           <button
             type="button"
             className={buttonClass}
@@ -431,7 +452,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           </button>
         </div>
 
-        {hint && (
+        {assistOn && hint && (
           <p className="rounded-md border px-3 py-2 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
             {hint.text}
           </p>
@@ -518,10 +539,16 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
               )}
             </fieldset>
           )}
+          {tab === "setup" && mode === "computer" && (
+            <label className="mt-3 flex items-center justify-between gap-2 text-sm">
+              Help (best move &amp; tutor)
+              <input type="checkbox" checked={assist} onChange={(e) => changeAssist(e.target.checked)} className="h-4 w-4" />
+            </label>
+          )}
         </div>
       </aside>
 
-      {renderOverlay?.({ fen, lastMoveSan: lastMove?.san ?? null, getEngineFacts })}
+      {assistOn && renderOverlay?.({ fen, lastMoveSan: lastMove?.san ?? null, getEngineFacts })}
 
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Choose promotion piece">

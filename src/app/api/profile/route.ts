@@ -15,6 +15,7 @@ const updateSchema = z
       .refine((value) => !/[\p{Cc}\u200B-\u200F\u202A-\u202E\u2066-\u2069]/u.test(value), "Remove hidden control characters")
       .optional(),
     bio: z.string().trim().max(280).optional(),
+    isPublic: z.boolean().optional(),
     preferences: z
       .object({
         theme: z.enum(SITE_THEME_IDS).optional(),

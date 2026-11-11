@@ -8,6 +8,7 @@ interface ProfileFormProps {
   initial: {
     username: string;
     bio: string;
+    isPublic: boolean;
     theme: SiteThemeId;
     boardTheme: BoardThemeId;
     tutorPersonality: "teacher" | "coach" | "analyst";
@@ -20,6 +21,7 @@ const borderStyle = { borderColor: "var(--border)" } as const;
 export function ProfileForm({ initial }: ProfileFormProps) {
   const [username, setUsername] = useState(initial.username);
   const [bio, setBio] = useState(initial.bio);
+  const [isPublic, setIsPublic] = useState(initial.isPublic);
   const [theme, setTheme] = useState(initial.theme);
   const [boardTheme, setBoardTheme] = useState(initial.boardTheme);
   const [tutorPersonality, setTutorPersonality] = useState(initial.tutorPersonality);
@@ -44,6 +46,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
         body: JSON.stringify({
           username,
           bio,
+          isPublic,
           preferences: { theme, boardTheme, tutorPersonality },
         }),
       });
@@ -83,6 +86,16 @@ export function ProfileForm({ initial }: ProfileFormProps) {
       <label className="block text-sm font-medium">
         About you
         <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={280} rows={3} className={inputClass} style={borderStyle} />
+      </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-1" />
+        <span>
+          <span className="font-medium">Show me on the public players page</span>
+          <span className="block text-xs" style={{ color: "var(--muted)" }}>
+            Others see your username, bio and stats. Never your email.
+          </span>
+        </span>
       </label>
 
       <fieldset>

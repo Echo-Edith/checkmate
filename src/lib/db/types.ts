@@ -25,6 +25,8 @@ export interface UserProfileDoc {
   userId: string;
   username: string;
   bio: string;
+  /** Show on the public players list. Missing means public. */
+  isPublic?: boolean;
   preferences: UserPreferences;
   stats: UserStats;
   createdAt: Date;

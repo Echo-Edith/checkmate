@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/puzzles", label: "Puzzles" },
   { href: "/lessons", label: "Lessons" },
   { href: "/analyze", label: "Analyse" },
+  { href: "/players", label: "Players" },
 ];
 
 export async function SiteNav() {

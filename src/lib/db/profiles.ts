@@ -26,7 +26,13 @@ async function getProfiles(): Promise<Collection<UserProfileDoc>> {
   return collection;
 }
 
-function defaultUsername(userId: string, email: string | undefined): string {
+/** New accounts get a neutral name. It must never be built from the email address, because usernames are public. */
+function defaultUsername(userId: string): string {
+  return `Player_${userId.replace(/-/g, "").slice(0, 6)}`;
+}
+
+/** Older accounts got a name built from the email. This rebuilds that old name so it can be replaced. */
+function legacyUsername(userId: string, email: string | undefined): string {
   const base = (email?.split("@")[0] ?? "player").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20);
   return `${base || "player"}_${userId.slice(0, 4)}`;
 }
@@ -44,7 +50,7 @@ export async function getOrCreateProfile(userId: string, email: string | undefin
     {
       $setOnInsert: {
         userId,
-        username: defaultUsername(userId, email),
+        username: defaultUsername(userId),
         bio: "",
         preferences: DEFAULT_PREFERENCES,
         stats: DEFAULT_STATS,
@@ -56,6 +62,13 @@ export async function getOrCreateProfile(userId: string, email: string | undefin
   );
 
   if (!profile) throw new Error("Could not load profile.");
+
+  // Hide the email: replace an old email-based default name with a neutral one.
+  if (profile.username === legacyUsername(userId, email)) {
+    const username = defaultUsername(userId);
+    await profiles.updateOne({ userId }, { $set: { username, updatedAt: new Date() } });
+    return { ...profile, username };
+  }
   return profile;
 }
 
@@ -82,6 +95,7 @@ export async function incrementStats(userId: string, fields: Partial<UserStats>)
 export interface ProfileUpdate {
   username?: string;
   bio?: string;
+  isPublic?: boolean;
   preferences?: Partial<UserPreferences>;
 }
 
@@ -92,6 +106,7 @@ export async function updateProfile(userId: string, update: ProfileUpdate): Prom
 
   if (update.username !== undefined) $set.username = update.username;
   if (update.bio !== undefined) $set.bio = update.bio;
+  if (update.isPublic !== undefined) $set.isPublic = update.isPublic;
   for (const [key, value] of Object.entries(update.preferences ?? {})) {
     $set[`preferences.${key}`] = value;
   }

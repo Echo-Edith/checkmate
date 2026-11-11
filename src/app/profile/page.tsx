@@ -105,6 +105,7 @@ export default async function ProfilePage() {
             initial={{
               username: profile.username,
               bio: profile.bio,
+              isPublic: profile.isPublic !== false,
               theme: profile.preferences.theme,
               boardTheme: profile.preferences.boardTheme,
               tutorPersonality: profile.preferences.tutorPersonality,

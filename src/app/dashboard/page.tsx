@@ -1,3 +1,4 @@
+import { Hub } from "@/components/dashboard/Hub";
 import { requireUser } from "@/lib/auth";
 import { getOrCreateProfile } from "@/lib/db/profiles";
 
@@ -30,12 +31,12 @@ export default async function DashboardPage() {
     : [];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Welcome, {username}</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-            {user.email}
+            What do you want to do?
           </p>
         </div>
         <form action="/auth/logout" method="post">
@@ -48,6 +49,10 @@ export default async function DashboardPage() {
           </button>
         </form>
       </header>
+
+      <div className="mt-6">
+        <Hub />
+      </div>
 
       {dbError ? (
         <p

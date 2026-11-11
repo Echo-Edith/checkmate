@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 
 const FEATURES = [
@@ -36,6 +37,7 @@ function HeroBoard() {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
+  if (user) redirect("/dashboard");
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-16">

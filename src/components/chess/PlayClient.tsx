@@ -5,7 +5,14 @@ import { useCallback, useState } from "react";
 import { ChessGame, type FinishedGame } from "@/components/chess/ChessGame";
 import { TutorMascot } from "@/components/tutor/TutorMascot";
 
-export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
+interface PlayClientProps {
+  loggedIn: boolean;
+  initialMode?: "pvp" | "computer";
+  initialLevel?: number;
+  initialColor?: "w" | "b";
+}
+
+export function PlayClient({ loggedIn, initialMode, initialLevel, initialColor }: PlayClientProps) {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const handleFinished = useCallback(
@@ -49,6 +56,9 @@ export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
         </p>
       )}
       <ChessGame
+        initialMode={initialMode}
+        initialLevel={initialLevel}
+        initialColor={initialColor}
         onGameFinished={handleFinished}
         renderOverlay={({ fen, lastMoveSan, getEngineFacts }) => (
           <TutorMascot fen={fen} lastMoveSan={lastMoveSan} loggedIn={loggedIn} getEngineFacts={getEngineFacts} />

@@ -45,6 +45,10 @@ export interface FinishedGame {
 }
 
 interface ChessGameProps {
+  initialMode?: Mode;
+  /** Index into the difficulty list (0 = Beginner). */
+  initialLevel?: number;
+  initialColor?: Color;
   /** Called once when a game ends (checkmate, draw or resignation). */
   onGameFinished?: (game: FinishedGame) => void;
   /** Floating content (the tutor mascot) drawn on top of the page. */
@@ -57,16 +61,16 @@ interface ChessGameProps {
   }) => ReactNode;
 }
 
-export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
+export function ChessGame({ initialMode = "computer", initialLevel = 1, initialColor = "w", onGameFinished, renderOverlay }: ChessGameProps) {
   const [moves, setMoves] = useState<PlayedMove[]>([]);
   const [viewIndex, setViewIndex] = useState(0);
-  const [orientation, setOrientation] = useState<Color>("w");
+  const [orientation, setOrientation] = useState<Color>(initialMode === "computer" ? initialColor : "w");
   const [pending, setPending] = useState<{ from: Square; to: Square } | null>(null);
   const [tab, setTab] = useState<Tab>("moves");
 
-  const [mode, setMode] = useState<Mode>("computer");
-  const [playerColor, setPlayerColor] = useState<Color>("w");
-  const [levelIndex, setLevelIndex] = useState(1);
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [playerColor, setPlayerColor] = useState<Color>(initialColor);
+  const [levelIndex, setLevelIndex] = useState(Math.min(LEVELS.length - 1, Math.max(0, initialLevel)));
   const [resigned, setResigned] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [hint, setHint] = useState<{ text: string; from: Square; to: Square } | null>(null);

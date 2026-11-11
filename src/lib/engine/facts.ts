@@ -31,6 +31,6 @@ export async function getEngineFacts(engine: StockfishEngine, fen: string, movet
     evalText: formatScore(result.score),
     bestMoveSan: uciToSan(fen, result.bestMove) ?? line[0] ?? "",
     line,
-    depth: result.depth,
+    depth: Math.max(1, result.depth),
   };
 }

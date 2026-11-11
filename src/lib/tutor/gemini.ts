@@ -1,6 +1,8 @@
 import "server-only";
 
 const DEFAULT_MODEL = "gemini-flash-latest";
+/** Tried in order if the first model is missing for this key. */
+const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
 interface GeminiChunk {
   candidates?: Array<{
@@ -52,7 +54,7 @@ export async function streamGemini(system: string, user: string): Promise<Readab
   if (!apiKey) {
     throw new GeminiError("The AI tutor is not configured. Missing environment variable GEMINI_API_KEY.", 503);
   }
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const models = [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])];
 
   const base = {
     systemInstruction: { parts: [{ text: system }] },
@@ -61,16 +63,31 @@ export async function streamGemini(system: string, user: string): Promise<Readab
   const fast = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } } };
 
   // Turning thinking off makes answers much faster. If the model rejects that setting, retry without it.
-  let response = await request(apiKey, model, fast);
-  if (response.status === 400) {
-    response = await request(apiKey, model, { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 1500 } });
+  const plain = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 1500 } };
+
+  let response: Response | undefined;
+  for (const model of models) {
+    response = await request(apiKey, model, fast);
+    if (response.status === 400) response = await request(apiKey, model, plain);
+    // 404 means this model does not exist for the key: try the next one. Any other answer is final.
+    if (response.status !== 404) break;
   }
 
-  if (!response.ok || !response.body) {
-    // Do not log the response body or the key.
-    console.error("Gemini request failed with status", response.status);
-    if (response.status === 429) throw new GeminiError("The AI tutor is busy. Please try again in a moment.", 429);
-    throw new GeminiError("The AI tutor is unavailable right now.", 502);
+  if (!response || !response.ok || !response.body) {
+    const status = response?.status ?? 0;
+    // Log Google's reason (never the key) so the cause is visible in the Vercel logs.
+    let reason = "";
+    try {
+      reason = ((await response?.json()) as { error?: { message?: string } } | undefined)?.error?.message ?? "";
+    } catch {
+      // No readable body.
+    }
+    console.error("Gemini request failed:", status, reason.slice(0, 300));
+    if (status === 429) throw new GeminiError("The AI tutor is busy or out of free quota. Try again in a minute.", 429);
+    if (status === 401 || status === 403) throw new GeminiError("The Gemini API key was rejected. Check GEMINI_API_KEY in Vercel.", 502);
+    if (status === 404) throw new GeminiError("No Gemini model was found for this key. Set GEMINI_MODEL in Vercel.", 502);
+    if (status === 400) throw new GeminiError("Gemini rejected the request. Check the Vercel logs for the reason.", 502);
+    throw new GeminiError("The AI service is down right now. Please try again soon.", 502);
   }
 
   const decoder = new TextDecoder();

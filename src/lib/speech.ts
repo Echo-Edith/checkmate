@@ -3,8 +3,12 @@
 const VOICE_KEY = "checkm8:voice";
 const VOICE_EVENT = "checkm8:voice-change";
 
-export function speechSupported(): boolean {
+function browserVoiceSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+}
+
+export function speechSupported(): boolean {
+  return browserVoiceSupported() || (typeof window !== "undefined" && typeof Audio !== "undefined");
 }
 
 export function readVoiceSetting(): boolean {
@@ -57,32 +61,32 @@ export function toSpokenText(input: string): string {
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined;
 
+/** Best-sounding voice the device has. "Natural"/"Neural" voices are far less robotic. */
 function pickVoice(): SpeechSynthesisVoice | null {
   if (cachedVoice) return cachedVoice;
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) return null;
   const english = voices.filter((voice) => voice.lang.toLowerCase().startsWith("en"));
   const pool = english.length > 0 ? english : voices;
-  cachedVoice = pool.find((voice) => /natural|neural|google|samantha|enhanced/i.test(voice.name)) ?? pool.find((voice) => voice.default) ?? pool[0] ?? null;
+  const preferred = [/natural|neural|online/i, /premium|enhanced/i, /aria|jenny|guy|samantha|ava|allison|zira/i, /google/i];
+  for (const pattern of preferred) {
+    const match = pool.find((voice) => pattern.test(voice.name));
+    if (match) {
+      cachedVoice = match;
+      return match;
+    }
+  }
+  cachedVoice = pool.find((voice) => voice.default) ?? pool[0] ?? null;
   return cachedVoice;
 }
 
-export function stopSpeaking(): void {
-  if (speechSupported()) window.speechSynthesis.cancel();
-}
-
-/** Speaks the text. Anything already being said is stopped first. */
-export function speak(text: string, onEnd?: () => void): void {
-  if (!speechSupported()) {
+/** Plays the device voice. Slightly higher pitch and a quick pace make it sound brighter. */
+function browserSpeak(spoken: string, onEnd?: () => void): void {
+  if (!browserVoiceSupported()) {
     onEnd?.();
     return;
   }
-  const spoken = toSpokenText(text);
   window.speechSynthesis.cancel();
-  if (!spoken) {
-    onEnd?.();
-    return;
-  }
   const utterance = new SpeechSynthesisUtterance(spoken);
   const voice = pickVoice();
   if (voice) {
@@ -91,8 +95,91 @@ export function speak(text: string, onEnd?: () => void): void {
   } else {
     utterance.lang = "en-US";
   }
-  utterance.rate = 1.05;
+  utterance.rate = 1.08;
+  utterance.pitch = 1.1;
   utterance.onend = () => onEnd?.();
   utterance.onerror = () => onEnd?.();
   window.speechSynthesis.speak(utterance);
+}
+
+let playToken = 0;
+let currentAudio: HTMLAudioElement | null = null;
+let currentUrl: string | null = null;
+let naturalBlockedUntil = 0;
+
+function releaseAudio(): void {
+  if (currentAudio) {
+    currentAudio.onended = null;
+    currentAudio.onerror = null;
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  if (currentUrl) {
+    URL.revokeObjectURL(currentUrl);
+    currentUrl = null;
+  }
+}
+
+export function stopSpeaking(): void {
+  playToken += 1;
+  releaseAudio();
+  if (browserVoiceSupported()) window.speechSynthesis.cancel();
+}
+
+export type VoicePersona = "teacher" | "coach" | "analyst";
+
+/**
+ * Speaks the text. It first asks the server for a natural, expressive voice (needs a login).
+ * If that is not available, it uses the voice built into the device.
+ */
+export function speak(text: string, onEnd?: () => void, persona: VoicePersona = "teacher"): void {
+  const spoken = toSpokenText(text);
+  stopSpeaking();
+  if (!spoken) {
+    onEnd?.();
+    return;
+  }
+  const token = playToken;
+  const fallback = () => {
+    if (token === playToken) browserSpeak(spoken, onEnd);
+  };
+
+  if (typeof Audio === "undefined" || Date.now() < naturalBlockedUntil) {
+    fallback();
+    return;
+  }
+
+  fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: spoken.slice(0, 700), persona }),
+  })
+    .then(async (response) => {
+      if (token !== playToken) return;
+      if (!response.ok) {
+        // Not logged in or not set up: do not retry for a few minutes.
+        if (response.status !== 429) naturalBlockedUntil = Date.now() + 5 * 60_000;
+        throw new Error("natural voice unavailable");
+      }
+      const blob = await response.blob();
+      if (token !== playToken) return;
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudio = audio;
+      currentUrl = url;
+      audio.onended = () => {
+        if (token !== playToken) return;
+        releaseAudio();
+        onEnd?.();
+      };
+      audio.onerror = () => {
+        releaseAudio();
+        fallback();
+      };
+      await audio.play();
+    })
+    .catch(() => {
+      releaseAudio();
+      fallback();
+    });
 }

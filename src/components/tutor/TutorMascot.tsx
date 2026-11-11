@@ -249,7 +249,7 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
       if (!openRef.current) setUnread(true);
       if (voiceOnRef.current) {
         setSpeakingId(replyId);
-        speak(final, () => setSpeakingId((current) => (current === replyId ? null : current)));
+        speak(final, () => setSpeakingId((current) => (current === replyId ? null : current)), persona);
       }
       if (fenRef.current !== askedFen) {
         addMessage("tutor", "The board has changed since you asked. Ask me again to look at the new position.");
@@ -381,7 +381,7 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
                         setSpeakingId(null);
                       } else {
                         setSpeakingId(message.id);
-                        speak(message.text, () => setSpeakingId((current) => (current === message.id ? null : current)));
+                        speak(message.text, () => setSpeakingId((current) => (current === message.id ? null : current)), persona);
                       }
                     }}
                     className="mb-1 grid h-6 w-6 shrink-0 place-items-center rounded-full"

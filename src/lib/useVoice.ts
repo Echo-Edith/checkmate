@@ -22,7 +22,7 @@ export function useVoice() {
   /** Speaks only when the voice switch is on. */
   const say = useCallback(
     (text: string) => {
-      if (enabled) speak(text);
+      if (enabled) speak(text, undefined, "coach");
     },
     [enabled],
   );

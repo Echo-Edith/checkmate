@@ -49,7 +49,7 @@ function toPlayer(doc: Document): PublicPlayer {
     },
     score: Number(doc.score ?? 0),
     rank: Number(doc.rank ?? 0),
-    badges: badgesFor({ isOwner: doc.isOwner === true, createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date() }),
+    badges: badgesFor({ isOwner: doc.isOwner === true, isBeta: doc.isBeta === true }),
     avatarVersion: doc.avatar?.updatedAt instanceof Date ? doc.avatar.updatedAt.getTime() : null,
   };
 }

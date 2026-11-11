@@ -1,12 +1,6 @@
-/** Profile badges. Owner is saved on the profile; Beta tester is worked out from the join date. */
+/** Profile badges. Both are saved on the profile and only the owner can change them. */
 
 export type BadgeId = "owner" | "beta";
-
-/** Everyone who joined before this date is a beta tester. Change it with the BETA_ENDS variable. */
-function betaEnds(): number {
-  const parsed = Date.parse(process.env.BETA_ENDS ?? "");
-  return Number.isNaN(parsed) ? Date.parse("2027-01-01T00:00:00Z") : parsed;
-}
 
 /** True if this verified sign-in email is listed in OWNER_EMAILS (comma separated). Never sent to the browser. */
 export function isOwnerEmail(email: string | undefined): boolean {
@@ -18,10 +12,9 @@ export function isOwnerEmail(email: string | undefined): boolean {
   return owners.includes(email.trim().toLowerCase());
 }
 
-export function badgesFor(input: { isOwner?: boolean; createdAt: Date | string }): BadgeId[] {
+export function badgesFor(input: { isOwner?: boolean; isBeta?: boolean }): BadgeId[] {
   const badges: BadgeId[] = [];
   if (input.isOwner) badges.push("owner");
-  const joined = new Date(input.createdAt).getTime();
-  if (!Number.isNaN(joined) && joined < betaEnds()) badges.push("beta");
+  if (input.isBeta) badges.push("beta");
   return badges;
 }

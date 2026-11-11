@@ -52,7 +52,7 @@ export default async function ProfilePage() {
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">{profile.username}</h1>
           <div className="mt-1">
-            <Badges badges={badgesFor({ isOwner: profile.isOwner, createdAt: profile.createdAt })} />
+            <Badges badges={badgesFor({ isOwner: profile.isOwner, isBeta: profile.isBeta })} />
           </div>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
             {user.email}

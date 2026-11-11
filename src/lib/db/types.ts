@@ -38,6 +38,8 @@ export interface UserProfileDoc {
   avatar?: UserAvatar;
   /** True for the site owner. Set on the server from the verified email, never by the client. */
   isOwner?: boolean;
+  /** Beta tester badge. Only the owner can change this, from the owner panel. */
+  isBeta?: boolean;
   preferences: UserPreferences;
   stats: UserStats;
   createdAt: Date;

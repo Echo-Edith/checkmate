@@ -37,7 +37,7 @@ Copy `.env.example` to `.env.local` and fill it in (never commit `.env.local`):
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase client | yes |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase client | yes |
-| `MONGODB_URI` | Server only (MongoDB driver) | **no** |
+| `MONGO_URI` | Server only (MongoDB driver) | **no** |
 | `GEMINI_API_KEY` | Server only (`/api/tutor`) | **no** |
 | `GEMINI_MODEL` (optional) | Server only. Defaults to `gemini-flash-latest` | no |
 

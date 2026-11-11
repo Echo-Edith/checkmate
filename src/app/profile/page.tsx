@@ -117,7 +117,7 @@ export default async function ProfilePage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <p role="alert" className="rounded-md border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          Could not load your profile. Check that MONGODB_URI is set and that MongoDB Atlas allows connections from this server.
+          Could not load your profile. Check that MONGO_URI is set and that MongoDB Atlas allows connections from this server.
         </p>
       </main>
     );

@@ -55,7 +55,7 @@ export default async function DashboardPage() {
           className="mt-8 rounded-md border p-4 text-sm"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-          Could not reach the database. Check that MONGODB_URI is set correctly and that your Atlas
+          Could not reach the database. Check that MONGO_URI is set correctly and that your Atlas
           Network Access list allows connections from Vercel (0.0.0.0/0).
         </p>
       ) : (

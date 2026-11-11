@@ -13,10 +13,10 @@ const globalForMongo = globalThis as unknown as {
 };
 
 function getClientPromise(): Promise<MongoClient> {
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGO_URI;
   if (!uri) {
     throw new Error(
-      "Missing environment variable MONGODB_URI. Add it to .env.local and to Vercel project settings (server-side only).",
+      "Missing environment variable MONGO_URI. Add it to .env.local and to Vercel project settings (server-side only).",
     );
   }
 

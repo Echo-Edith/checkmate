@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/mongodb";
 import {
   DEFAULT_PREFERENCES,
   DEFAULT_STATS,
+  type UserAvatar,
   type UserPreferences,
   type UserProfileDoc,
   type UserStats,
@@ -58,7 +59,7 @@ export async function getOrCreateProfile(userId: string, email: string | undefin
         updatedAt: now,
       },
     },
-    { upsert: true, returnDocument: "after", projection: { _id: 0 } },
+    { upsert: true, returnDocument: "after", projection: { _id: 0, "avatar.data": 0 } },
   );
 
   if (!profile) throw new Error("Could not load profile.");
@@ -114,6 +115,19 @@ export async function updateProfile(userId: string, update: ProfileUpdate): Prom
   return profiles.findOneAndUpdate(
     { userId },
     { $set },
-    { returnDocument: "after", projection: { _id: 0 } },
+    { returnDocument: "after", projection: { _id: 0, "avatar.data": 0 } },
   );
+}
+
+/** Saves the profile picture. The caller must already have validated size and type. */
+export async function setAvatar(userId: string, avatar: { data: string; type: UserAvatar["type"] }): Promise<Date> {
+  const profiles = await getProfiles();
+  const updatedAt = new Date();
+  await profiles.updateOne({ userId }, { $set: { avatar: { ...avatar, updatedAt }, updatedAt } });
+  return updatedAt;
+}
+
+export async function clearAvatar(userId: string): Promise<void> {
+  const profiles = await getProfiles();
+  await profiles.updateOne({ userId }, { $unset: { avatar: "" }, $set: { updatedAt: new Date() } });
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
 import { listPublicPlayers, type PublicPlayer } from "@/lib/db/public";
 
 export const metadata: Metadata = { title: "Players — Checkm8" };
@@ -55,6 +56,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
             <li key={player.id}>
               <Link href={`/players/${player.id}`} className="card card-hover flex items-center gap-3 px-4 py-3">
                 <span className="w-9 shrink-0 text-center text-lg font-semibold">{MEDALS[player.rank] ?? `#${player.rank}`}</span>
+                <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{player.username}</span>
                   <span className="block text-xs" style={{ color: "var(--muted)" }}>

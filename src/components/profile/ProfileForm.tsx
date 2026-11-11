@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Avatar } from "@/components/Avatar";
+import { resizeToAvatar } from "@/lib/resize-image";
 import { BOARD_THEMES, SITE_THEMES, type BoardThemeId, type SiteThemeId } from "@/lib/themes";
 import { applyPreferences, savePreferences } from "@/lib/preferences";
 
 interface ProfileFormProps {
+  /** The signed-in user's public id and picture version. */
+  avatar: { id: string | null; version: number | null };
   initial: {
     username: string;
     bio: string;
@@ -18,7 +22,49 @@ interface ProfileFormProps {
 const inputClass = "mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm";
 const borderStyle = { borderColor: "var(--border)" } as const;
 
-export function ProfileForm({ initial }: ProfileFormProps) {
+export function ProfileForm({ initial, avatar }: ProfileFormProps) {
+  const [picture, setPicture] = useState<{ preview: string | null; version: number | null }>({ preview: null, version: avatar.version });
+  const [pictureBusy, setPictureBusy] = useState(false);
+  const [pictureError, setPictureError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function onPickPicture(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setPictureError(null);
+    setPictureBusy(true);
+    try {
+      const image = await resizeToAvatar(file);
+      const response = await fetch("/api/profile/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string; version?: number };
+      if (!response.ok) throw new Error(data.error ?? "Could not save the picture.");
+      setPicture({ preview: image, version: data.version ?? Date.now() });
+    } catch (error) {
+      setPictureError(error instanceof Error ? error.message : "Could not save the picture.");
+    } finally {
+      setPictureBusy(false);
+    }
+  }
+
+  async function onRemovePicture() {
+    setPictureError(null);
+    setPictureBusy(true);
+    try {
+      const response = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (!response.ok) throw new Error("Could not remove the picture.");
+      setPicture({ preview: null, version: null });
+    } catch (error) {
+      setPictureError(error instanceof Error ? error.message : "Could not remove the picture.");
+    } finally {
+      setPictureBusy(false);
+    }
+  }
+
   const [username, setUsername] = useState(initial.username);
   const [bio, setBio] = useState(initial.bio);
   const [isPublic, setIsPublic] = useState(initial.isPublic);
@@ -71,6 +117,31 @@ export function ProfileForm({ initial }: ProfileFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="flex items-center gap-4">
+        {picture.preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={picture.preview} alt="Your profile picture" width={72} height={72} className="h-[72px] w-[72px] rounded-full object-cover" />
+        ) : (
+          <Avatar id={avatar.id} version={picture.version} name={initial.username} size={72} />
+        )}
+        <div className="flex flex-wrap gap-2">
+          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onPickPicture} className="hidden" />
+          <button type="button" disabled={pictureBusy} onClick={() => fileInput.current?.click()} className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {pictureBusy ? "Saving…" : picture.version ? "Change picture" : "Add picture"}
+          </button>
+          {picture.version && (
+            <button type="button" disabled={pictureBusy} onClick={onRemovePicture} className="rounded-lg border px-4 py-2 text-sm font-medium disabled:opacity-50" style={borderStyle}>
+              Remove
+            </button>
+          )}
+          {pictureError && (
+            <p role="alert" className="w-full text-sm text-red-500">
+              {pictureError}
+            </p>
+          )}
+        </div>
+      </div>
+
       <label className="block text-sm font-medium">
         Username
         <input

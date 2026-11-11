@@ -20,6 +20,14 @@ export interface UserStats {
   lessonsCompleted: number;
 }
 
+/** Small profile picture (resized to about 192px in the browser, well under 60 KB). */
+export interface UserAvatar {
+  /** Base64-encoded image bytes. Left out of normal profile reads. */
+  data: string;
+  type: "image/webp" | "image/jpeg" | "image/png";
+  updatedAt: Date;
+}
+
 export interface UserProfileDoc {
   /** Supabase auth user ID (unique). Also the ownership key. */
   userId: string;
@@ -27,6 +35,7 @@ export interface UserProfileDoc {
   bio: string;
   /** Show on the public players list. Missing means public. */
   isPublic?: boolean;
+  avatar?: UserAvatar;
   preferences: UserPreferences;
   stats: UserStats;
   createdAt: Date;

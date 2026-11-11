@@ -15,6 +15,8 @@ export interface PublicPlayer {
   stats: UserStats;
   score: number;
   rank: number;
+  /** Changes whenever the picture changes (for cache busting). Null when there is no picture. */
+  avatarVersion: number | null;
 }
 
 /** Score = 3 per win + 1 per draw + 2 per puzzle solved + 5 per lesson completed. */
@@ -45,6 +47,7 @@ function toPlayer(doc: Document): PublicPlayer {
     },
     score: Number(doc.score ?? 0),
     rank: Number(doc.rank ?? 0),
+    avatarVersion: doc.avatar?.updatedAt instanceof Date ? doc.avatar.updatedAt.getTime() : null,
   };
 }
 
@@ -55,7 +58,7 @@ function rankedPipeline(after: Document[]): Document[] {
     { $addFields: { score: SCORE_EXPRESSION } },
     { $setWindowFields: { sortBy: { score: -1 }, output: { rank: { $rank: {} } } } },
     ...after,
-    { $project: { userId: 0, preferences: 0, updatedAt: 0 } },
+    { $project: { userId: 0, preferences: 0, updatedAt: 0, "avatar.data": 0 } },
   ];
 }
 
@@ -79,4 +82,25 @@ export async function getPublicPlayer(id: string): Promise<PublicPlayer | null> 
     .toArray();
   const doc = docs[0];
   return doc ? toPlayer(doc) : null;
+}
+
+/** The picture bytes for a public profile id. Private profiles only show their picture to the owner. */
+export async function getAvatarImage(id: string, viewerUserId: string | null): Promise<{ bytes: Buffer; type: string; isPublic: boolean } | null> {
+  if (!ObjectId.isValid(id) || String(new ObjectId(id)) !== id) return null;
+  const db = await getDb();
+  const doc = await db.collection("profiles").findOne({ _id: new ObjectId(id) }, { projection: { avatar: 1, userId: 1, isPublic: 1 } });
+  const avatar = doc?.avatar as { data?: string; type?: string } | undefined;
+  if (!doc || !avatar?.data || !avatar.type) return null;
+  const isPublic = doc.isPublic !== false;
+  if (!isPublic && doc.userId !== viewerUserId) return null;
+  return { bytes: Buffer.from(avatar.data, "base64"), type: avatar.type, isPublic };
+}
+
+/** The signed-in user's own public id and picture version, for showing their picture. */
+export async function getOwnPlayerRef(userId: string): Promise<{ id: string; avatarVersion: number | null } | null> {
+  const db = await getDb();
+  const doc = await db.collection("profiles").findOne({ userId }, { projection: { "avatar.updatedAt": 1 } });
+  if (!doc) return null;
+  const updatedAt = (doc.avatar as { updatedAt?: Date } | undefined)?.updatedAt;
+  return { id: String(doc._id), avatarVersion: updatedAt instanceof Date ? updatedAt.getTime() : null };
 }

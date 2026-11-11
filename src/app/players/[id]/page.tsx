@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { getPublicPlayer } from "@/lib/db/public";
 
 export const dynamic = "force-dynamic";
@@ -42,9 +43,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
       </Link>
 
       <header className="card mt-4 flex items-center gap-4 p-5">
-        <span className="btn-primary grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-3xl font-bold">
-          {Array.from(player.username)[0]?.toUpperCase() ?? "♞"}
-        </span>
+        <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={72} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{player.username}</h1>
           <p className="text-xs" style={{ color: "var(--muted)" }}>

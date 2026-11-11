@@ -6,6 +6,7 @@ import { LESSONS } from "@/lib/content/lessons";
 import { PUZZLES } from "@/lib/content/puzzles";
 import { listGames, type GameSummary } from "@/lib/db/games";
 import { getOrCreateProfile } from "@/lib/db/profiles";
+import { getOwnPlayerRef } from "@/lib/db/public";
 import { getProgress } from "@/lib/db/progress";
 
 export const metadata: Metadata = { title: "Profile — Checkm8" };
@@ -27,6 +28,9 @@ export default async function ProfilePage() {
       getProgress(user.id),
       listGames(user.id, 8),
     ]);
+
+    // After the profile exists, so a brand-new account never races to create it twice.
+    const ownRef = await getOwnPlayerRef(user.id);
 
     const { puzzles } = progress;
     const accuracy = puzzles.attempts > 0 ? `${Math.round((puzzles.correct / puzzles.attempts) * 100)}%` : "—";
@@ -102,6 +106,7 @@ export default async function ProfilePage() {
             Settings
           </h2>
           <ProfileForm
+            avatar={{ id: ownRef?.id ?? null, version: ownRef?.avatarVersion ?? null }}
             initial={{
               username: profile.username,
               bio: profile.bio,

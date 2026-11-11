@@ -7,8 +7,8 @@ import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 
-const LIGHT = "#eeeed2";
-const DARK = "#769656";
+const LIGHT = "var(--sq-light, #eeeed2)";
+const DARK = "var(--sq-dark, #769656)";
 
 export interface BoardMove {
   from: Square;

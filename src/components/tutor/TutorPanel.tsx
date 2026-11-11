@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { loadPreferences } from "@/lib/preferences";
 import type { EngineFacts } from "@/lib/engine/facts";
 import { askTutor, TutorClientError } from "@/lib/tutor/client";
 import { PERSONAS, type Persona } from "@/lib/tutor/schema";
@@ -25,6 +26,12 @@ export function TutorPanel({ fen, loggedIn, getEngineFacts }: TutorPanelProps) {
   const [reply, setReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Start with the tutor the user picked in their profile.
+  useEffect(() => {
+    const saved = loadPreferences()?.tutorPersonality;
+    if (saved && PERSONAS.includes(saved)) setPersona(saved);
+  }, []);
 
   async function run(task: "explain" | "ask") {
     setLoading(true);

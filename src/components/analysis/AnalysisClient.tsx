@@ -1,0 +1,492 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Chess } from "chess.js";
+import { EvalGraph } from "@/components/analysis/EvalGraph";
+import { ChessBoard } from "@/components/chess/ChessBoard";
+import { analyzeGame, type GameAnalysis, type PlyAnalysis } from "@/lib/analysis/analyze";
+import { useStockfish } from "@/lib/engine/useStockfish";
+import type { GameSummary } from "@/lib/db/games";
+import { askTutor, TutorClientError } from "@/lib/tutor/client";
+import { CLASSIFICATIONS, PERSONAS, type MoveClassification, type Persona } from "@/lib/tutor/schema";
+
+const borderStyle = { borderColor: "var(--border)" } as const;
+const noop = () => undefined;
+
+const BADGE: Record<MoveClassification, { label: string; color: string }> = {
+  best: { label: "Best", color: "#16a34a" },
+  good: { label: "Good", color: "#65a30d" },
+  inaccuracy: { label: "Inaccuracy", color: "#ca8a04" },
+  mistake: { label: "Mistake", color: "#ea580c" },
+  blunder: { label: "Blunder", color: "#dc2626" },
+};
+
+interface AnalysisClientProps {
+  loggedIn: boolean;
+}
+
+function parseMoves(text: string): string[] {
+  const game = new Chess();
+  game.loadPgn(text.trim());
+  return game.history();
+}
+
+function resultLabel(game: GameSummary): string {
+  if (game.result === "1/2-1/2") return "Draw";
+  const whiteWon = game.result === "1-0";
+  return (whiteWon && game.color === "w") || (!whiteWon && game.color === "b") ? "Win" : "Loss";
+}
+
+export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
+  const { status: engineStatus, error: engineError, engine } = useStockfish(true);
+
+  const [games, setGames] = useState<GameSummary[]>([]);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+  const [pasted, setPasted] = useState("");
+  const [moves, setMoves] = useState<string[] | null>(null);
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [depth, setDepth] = useState(12);
+
+  const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [selected, setSelected] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const [persona, setPersona] = useState<Persona>("analyst");
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explainBusy, setExplainBusy] = useState(false);
+  const [explainError, setExplainError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let active = true;
+    fetch("/api/games")
+      .then(async (response) => {
+        const data = (await response.json()) as { games?: GameSummary[]; error?: string };
+        if (!response.ok) throw new Error(data.error ?? "Could not load your games.");
+        if (active) setGames(data.games ?? []);
+      })
+      .catch((err: unknown) => {
+        if (active) setGamesError(err instanceof Error ? err.message : "Could not load your games.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [loggedIn]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  function resetResults() {
+    abortRef.current?.abort();
+    setAnalysis(null);
+    setProgress(null);
+    setSelected(0);
+    setExplanation(null);
+    setExplainError(null);
+  }
+
+  function loadPasted() {
+    setInputError(null);
+    resetResults();
+    try {
+      const parsedMoves = parseMoves(pasted);
+      if (parsedMoves.length === 0) throw new Error("No moves found.");
+      setMoves(parsedMoves);
+    } catch {
+      setMoves(null);
+      setInputError("Could not read that game. Paste a PGN or a list of moves such as: 1. e4 e5 2. Nf3 Nc6");
+    }
+  }
+
+  async function loadSaved(id: string) {
+    setInputError(null);
+    resetResults();
+    try {
+      const response = await fetch(`/api/games/${id}`);
+      const data = (await response.json()) as { game?: { moves: string[] }; error?: string };
+      if (!response.ok || !data.game) throw new Error(data.error ?? "Could not load the game.");
+      setMoves(data.game.moves);
+    } catch (err) {
+      setMoves(null);
+      setInputError(err instanceof Error ? err.message : "Could not load the game.");
+    }
+  }
+
+  async function runAnalysis() {
+    const instance = engine.current;
+    if (!instance || !moves) return;
+    resetResults();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setProgress({ done: 0, total: moves.length + 1 });
+    try {
+      const result = await analyzeGame(instance, moves, {
+        depth,
+        signal: controller.signal,
+        onProgress: (done, total) => setProgress({ done, total }),
+      });
+      setAnalysis(result);
+      setSelected(result.plies.length);
+    } catch (err) {
+      if (!(err instanceof Error && err.message === "Analysis cancelled")) {
+        setInputError("The analysis failed. Please try again.");
+      }
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  const ply: PlyAnalysis | null = analysis && selected > 0 ? (analysis.plies[selected - 1] ?? null) : null;
+
+  const boardGame = useMemo(() => {
+    if (!moves) return new Chess();
+    const game = new Chess();
+    for (const san of moves.slice(0, selected)) game.move(san);
+    return game;
+  }, [moves, selected]);
+
+  const lastMove = ply ? { from: ply.from, to: ply.to } : null;
+
+  const keyHandler = useCallback(
+    (event: KeyboardEvent) => {
+      if (!analysis) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.tagName === "SELECT")) return;
+      if (event.key === "ArrowLeft") setSelected((s) => Math.max(0, s - 1));
+      else if (event.key === "ArrowRight") setSelected((s) => Math.min(analysis.plies.length, s + 1));
+    },
+    [analysis],
+  );
+  useEffect(() => {
+    window.addEventListener("keydown", keyHandler);
+    return () => window.removeEventListener("keydown", keyHandler);
+  }, [keyHandler]);
+
+  async function explainMove() {
+    if (!ply) return;
+    setExplainBusy(true);
+    setExplainError(null);
+    try {
+      setExplanation(
+        await askTutor({
+          kind: "explain_move",
+          persona,
+          fen: ply.fenBefore,
+          move: {
+            san: ply.san,
+            color: ply.color,
+            moveNumber: ply.moveNumber,
+            classification: ply.classification,
+            bestSan: ply.bestSan ?? undefined,
+            evalBefore: ply.evalBefore,
+            evalAfter: ply.evalAfter,
+          },
+        }),
+      );
+    } catch (err) {
+      setExplainError(err instanceof TutorClientError ? err.message : "The tutor could not answer right now.");
+    } finally {
+      setExplainBusy(false);
+    }
+  }
+
+  async function summarise() {
+    if (!analysis) return;
+    setExplainBusy(true);
+    setExplainError(null);
+    try {
+      const counts: Record<string, number> = {};
+      for (const key of CLASSIFICATIONS) {
+        counts[`white ${key}`] = analysis.white.counts[key];
+        counts[`black ${key}`] = analysis.black.counts[key];
+      }
+      const keyMoments = [...analysis.plies]
+        .filter((p) => p.classification === "mistake" || p.classification === "blunder" || p.classification === "inaccuracy")
+        .sort((a, b) => b.loss - a.loss)
+        .slice(0, 6)
+        .map((p) => ({
+          moveNumber: p.moveNumber,
+          color: p.color,
+          san: p.san,
+          classification: p.classification,
+          bestSan: p.bestSan ?? undefined,
+        }));
+      setExplanation(
+        await askTutor({
+          kind: "game_summary",
+          persona,
+          summary: {
+            result: analysis.resultText,
+            whiteAccuracy: Math.round(analysis.white.accuracy),
+            blackAccuracy: Math.round(analysis.black.accuracy),
+            counts,
+            keyMoments,
+          },
+        }),
+      );
+    } catch (err) {
+      setExplainError(err instanceof TutorClientError ? err.message : "The tutor could not answer right now.");
+    } finally {
+      setExplainBusy(false);
+    }
+  }
+
+  const analysing = progress !== null;
+
+  return (
+    <div className="space-y-8">
+      <section className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <h2 className="font-semibold">Paste a game</h2>
+          <textarea
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            rows={5}
+            placeholder="Paste a PGN or moves like: 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6"
+            className="w-full rounded-md border bg-transparent p-2 text-sm"
+            style={borderStyle}
+            aria-label="Game moves or PGN"
+          />
+          <button
+            type="button"
+            onClick={loadPasted}
+            disabled={!pasted.trim()}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-40"
+            style={borderStyle}
+          >
+            Load game
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="font-semibold">Your saved games</h2>
+          {!loggedIn ? (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              <Link href="/login" className="underline">
+                Log in
+              </Link>{" "}
+              to see the games you played against the computer.
+            </p>
+          ) : gamesError ? (
+            <p role="alert" className="text-sm text-red-500">
+              {gamesError}
+            </p>
+          ) : games.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              No saved games yet. Finish a game on the Play page and it will appear here.
+            </p>
+          ) : (
+            <ul className="max-h-44 space-y-1 overflow-y-auto">
+              {games.map((game) => (
+                <li key={game.id}>
+                  <button
+                    type="button"
+                    onClick={() => void loadSaved(game.id)}
+                    className="flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-sm"
+                    style={borderStyle}
+                  >
+                    <span>
+                      {game.mode === "computer" ? resultLabel(game) : "Two players"} · {Math.ceil(game.plies / 2)} moves
+                    </span>
+                    <span style={{ color: "var(--muted)" }}>{new Date(game.createdAt).toLocaleDateString()}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {inputError && (
+        <p role="alert" className="text-sm text-red-500">
+          {inputError}
+        </p>
+      )}
+
+      {moves && (
+        <section className="flex flex-wrap items-center gap-3 rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
+          <span>
+            Game loaded: <strong>{Math.ceil(moves.length / 2)} moves</strong>
+          </span>
+          <label className="flex items-center gap-2">
+            Depth
+            <select
+              value={depth}
+              onChange={(e) => setDepth(Number(e.target.value))}
+              className="rounded-md border bg-transparent px-2 py-1"
+              style={borderStyle}
+              disabled={analysing}
+            >
+              <option value={10}>Quick (10)</option>
+              <option value={12}>Standard (12)</option>
+              <option value={16}>Deep (16)</option>
+            </select>
+          </label>
+          {analysing ? (
+            <button type="button" onClick={() => abortRef.current?.abort()} className="rounded-md border px-3 py-1.5 font-medium" style={borderStyle}>
+              Cancel
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void runAnalysis()}
+              disabled={engineStatus !== "ready"}
+              className="rounded-md px-4 py-1.5 font-medium text-white disabled:opacity-50"
+              style={{ background: "var(--accent)" }}
+            >
+              {engineStatus === "loading" ? "Loading engine…" : "Analyse game"}
+            </button>
+          )}
+          {engineStatus === "error" && (
+            <span role="alert" className="text-red-500">
+              {engineError}
+            </span>
+          )}
+          {progress && (
+            <span role="status" style={{ color: "var(--muted)" }}>
+              Analysing position {progress.done} of {progress.total}…
+            </span>
+          )}
+        </section>
+      )}
+
+      {analysis && (
+        <section className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["White", analysis.white],
+                ["Black", analysis.black],
+              ] as const
+            ).map(([name, side]) => (
+              <div key={name} className="rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
+                <p className="flex items-baseline justify-between">
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xl font-semibold">{side.accuracy.toFixed(0)}% accuracy</span>
+                </p>
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {CLASSIFICATIONS.map((key) => (
+                    <li key={key} style={{ color: BADGE[key].color }}>
+                      {BADGE[key].label}: {side.counts[key]}
+                    </li>
+                  ))}
+                  <li>Missed chances: {side.missed}</li>
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={setSelected} />
+
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="w-full max-w-[600px] space-y-3">
+              <ChessBoard game={boardGame} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} />
+              <div className="flex gap-2">
+                <button type="button" className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40" style={borderStyle} disabled={selected === 0} onClick={() => setSelected((s) => Math.max(0, s - 1))} aria-label="Previous move">
+                  ‹
+                </button>
+                <button type="button" className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40" style={borderStyle} disabled={selected === analysis.plies.length} onClick={() => setSelected((s) => Math.min(analysis.plies.length, s + 1))} aria-label="Next move">
+                  ›
+                </button>
+                <span className="self-center text-sm" style={{ color: "var(--muted)" }}>
+                  Evaluation: {analysis.evalTexts[selected] ?? "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full max-w-[600px] space-y-4 lg:w-96">
+              <div className="rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
+                {ply ? (
+                  <>
+                    <p className="font-semibold">
+                      {ply.moveNumber}
+                      {ply.color === "w" ? "." : "..."} {ply.san}{" "}
+                      <span style={{ color: BADGE[ply.classification].color }}>{BADGE[ply.classification].label}</span>
+                    </p>
+                    <p className="mt-1" style={{ color: "var(--muted)" }}>
+                      Evaluation {ply.evalBefore} → {ply.evalAfter}
+                    </p>
+                    {ply.bestSan && ply.classification !== "best" && (
+                      <p className="mt-1">
+                        Engine preferred: <strong>{ply.bestSan}</strong>
+                      </p>
+                    )}
+                    {ply.missed && <p className="mt-1 text-orange-500">Missed opportunity: you had a better position before this move.</p>}
+                  </>
+                ) : (
+                  <p style={{ color: "var(--muted)" }}>Select a move to see the engine's verdict.</p>
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border p-4 text-sm" style={borderStyle}>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold">AI tutor</h3>
+                  <select
+                    value={persona}
+                    onChange={(e) => setPersona(e.target.value as Persona)}
+                    className="rounded-md border bg-transparent px-2 py-1"
+                    style={borderStyle}
+                    aria-label="Tutor personality"
+                  >
+                    {PERSONAS.map((key) => (
+                      <option key={key} value={key}>
+                        {key[0]?.toUpperCase()}
+                        {key.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {loggedIn ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void explainMove()} disabled={!ply || explainBusy} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40" style={borderStyle}>
+                      Explain this move
+                    </button>
+                    <button type="button" onClick={() => void summarise()} disabled={explainBusy} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40" style={borderStyle}>
+                      Game review
+                    </button>
+                  </div>
+                ) : (
+                  <p style={{ color: "var(--muted)" }}>
+                    <Link href="/login" className="underline">
+                      Log in
+                    </Link>{" "}
+                    to use the AI tutor.
+                  </p>
+                )}
+                {explainBusy && <p style={{ color: "var(--muted)" }}>Thinking…</p>}
+                {explainError && (
+                  <p role="alert" className="text-red-500">
+                    {explainError}
+                  </p>
+                )}
+                {explanation && !explainBusy && <p className="whitespace-pre-wrap leading-relaxed">{explanation}</p>}
+              </div>
+
+              <ol className="max-h-80 space-y-0.5 overflow-y-auto rounded-lg border p-2 text-sm" style={borderStyle}>
+                {analysis.plies.map((item) => (
+                  <li key={item.ply}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(item.ply)}
+                      className="flex w-full items-center justify-between rounded px-2 py-1 text-left"
+                      style={{ background: selected === item.ply ? "var(--surface)" : "transparent", fontWeight: selected === item.ply ? 600 : 400 }}
+                    >
+                      <span>
+                        {item.moveNumber}
+                        {item.color === "w" ? "." : "..."} {item.san}
+                      </span>
+                      <span className="text-xs" style={{ color: BADGE[item.classification].color }}>
+                        {BADGE[item.classification].label}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

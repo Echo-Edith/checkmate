@@ -62,7 +62,7 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
       </button>
 
       {panel !== "none" && (
-        <div className="mascot-panel grid gap-3 sm:grid-cols-2">
+        <div className="mascot-panel grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => setPanel("bot")}
@@ -78,13 +78,22 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
               Pick how strong it is.
             </span>
           </button>
+          <Link href="/online" className="card card-hover block p-5">
+            <span className="text-2xl" aria-hidden>
+              🌍
+            </span>
+            <span className="mt-2 block font-semibold">Play online</span>
+            <span className="block text-sm" style={{ color: "var(--muted)" }}>
+              Other players on Checkm8.
+            </span>
+          </Link>
           <Link href="/play?mode=pvp" className="card card-hover block p-5">
             <span className="text-2xl" aria-hidden>
               👥
             </span>
-            <span className="mt-2 block font-semibold">Play a person</span>
+            <span className="mt-2 block font-semibold">Same screen</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
-              Two players, one screen.
+              Two players, one device.
             </span>
           </Link>
         </div>

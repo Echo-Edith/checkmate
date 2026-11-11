@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 // Runs before first paint so the saved theme never flashes the wrong colours.

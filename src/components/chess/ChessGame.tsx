@@ -41,7 +41,7 @@ const LEVELS = [
 ] as const;
 
 const buttonClass =
-  "rounded-md border px-3 py-1.5 text-sm font-medium transition-opacity disabled:opacity-40";
+  "rounded-md border px-3 py-1.5 text-sm font-medium transition-opacity disabled:opacity-40 pointer-coarse:px-3.5 pointer-coarse:py-2.5";
 const borderStyle = { borderColor: "var(--border)" } as const;
 
 export interface FinishedGame {
@@ -349,7 +349,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   return (
     <div className="grid gap-4 lg:grid-cols-[auto_24rem] lg:items-start lg:justify-center">
       {/* Board column: sized to the screen so the board is large but never needs scrolling */}
-      <div className="mx-auto space-y-2" style={{ width: "min(calc(100vw - 2rem), calc(100svh - 12rem), 680px)", minWidth: "17rem" }}>
+      <div className="board-col mx-auto space-y-2">
         <div
           role="status"
           aria-live="polite"
@@ -485,7 +485,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           ))}
         </div>
 
-        <div className="h-72 overflow-y-auto p-3 lg:h-[min(36rem,calc(100svh-12rem))]">
+        <div className="side-scroll overflow-y-auto p-3">
           {tab === "moves" &&
             (rows.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--muted)" }}>

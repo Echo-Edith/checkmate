@@ -65,23 +65,21 @@ export default async function LessonPage({ params }: LessonPageProps) {
         />
       </div>
 
-      <nav aria-label="Lesson navigation" className="mt-8 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <nav aria-label="Lesson navigation" className="mt-8 flex flex-wrap items-center justify-between gap-2">
         {previous ? (
           <Link href={`/lessons/${previous.id}`} className="card card-hover px-4 py-3 text-sm font-medium">
             ← Previous
           </Link>
-        ) : (
-          <span />
-        )}
+        ) : null}
         <Link href="/lessons" className="card px-4 py-3 text-sm font-medium">
           All lessons
         </Link>
         {next ? (
-          <Link href={`/lessons/${next.id}`} className="btn-primary justify-self-end rounded-xl px-5 py-3 text-sm font-semibold">
+          <Link href={`/lessons/${next.id}`} className="btn-primary rounded-xl px-5 py-3 text-sm font-semibold">
             Next lesson →
           </Link>
         ) : (
-          <Link href="/puzzles" className="btn-primary justify-self-end rounded-xl px-5 py-3 text-sm font-semibold">
+          <Link href="/puzzles" className="btn-primary rounded-xl px-5 py-3 text-sm font-semibold">
             Try puzzles →
           </Link>
         )}

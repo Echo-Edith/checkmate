@@ -24,7 +24,14 @@
   }
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
+  overflow-x: clip;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   background-color: var(--background);
   background-image:
     radial-gradient(60rem 28rem at 85% -8%, color-mix(in srgb, var(--glow) 16%, transparent), transparent 70%),
@@ -207,4 +214,28 @@ body {
 .mascot-panel { animation: mascot-pop 0.15s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .mascot-body, .mascot-eyes, .mascot-panel, .float-slow { animation: none; }
+}
+
+/* Play page sizing. The first rule works everywhere; the @supports rules use the real visible screen height on phones. */
+.board-col {
+  width: min(calc(100vw - 2rem), 680px);
+  min-width: 17rem;
+}
+.side-scroll {
+  height: 18rem;
+}
+@media (min-width: 1024px) {
+  .side-scroll { height: min(36rem, calc(100vh - 12rem)); }
+}
+@supports (height: 1svh) {
+  .board-col { width: min(calc(100vw - 2rem), calc(100svh - 12rem), 680px); }
+  @media (min-width: 1024px) {
+    .side-scroll { height: min(36rem, calc(100svh - 12rem)); }
+  }
+}
+
+/* Touch screens: 16px fields stop iOS from zooming in, and controls get a comfortable tap size. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+  .btn-primary { min-height: 44px; }
 }

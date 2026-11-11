@@ -1,5 +1,6 @@
 import "server-only";
 import type { Collection } from "mongodb";
+import { isOwnerEmail } from "@/lib/badges";
 import { getDb } from "@/lib/db/mongodb";
 import {
   DEFAULT_PREFERENCES,
@@ -63,6 +64,13 @@ export async function getOrCreateProfile(userId: string, email: string | undefin
   );
 
   if (!profile) throw new Error("Could not load profile.");
+
+  // The owner badge follows the OWNER_EMAILS setting (added or removed to match it).
+  const owner = isOwnerEmail(email);
+  if ((profile.isOwner ?? false) !== owner) {
+    await profiles.updateOne({ userId }, { $set: { isOwner: owner } });
+    profile.isOwner = owner;
+  }
 
   // Hide the email: replace an old email-based default name with a neutral one.
   if (profile.username === legacyUsername(userId, email)) {

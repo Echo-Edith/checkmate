@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Badges } from "@/components/Badges";
 import { Avatar } from "@/components/Avatar";
 import { getPublicPlayer } from "@/lib/db/public";
 
@@ -46,6 +47,11 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
         <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={72} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{player.username}</h1>
+          {player.badges.length > 0 && (
+            <div className="mt-1">
+              <Badges badges={player.badges} />
+            </div>
+          )}
           <p className="text-xs" style={{ color: "var(--muted)" }}>
             Joined {new Date(player.createdAt).toLocaleDateString("en", { year: "numeric", month: "short" })}
           </p>

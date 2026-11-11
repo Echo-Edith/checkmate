@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Badges } from "@/components/Badges";
 import { Avatar } from "@/components/Avatar";
 import { listPublicPlayers, type PublicPlayer } from "@/lib/db/public";
 
@@ -58,7 +59,10 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
                 <span className="w-9 shrink-0 text-center text-lg font-semibold">{MEDALS[player.rank] ?? `#${player.rank}`}</span>
                 <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={40} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{player.username}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-medium">{player.username}</span>
+                    <Badges badges={player.badges} compact />
+                  </span>
                   <span className="block text-xs" style={{ color: "var(--muted)" }}>
                     {player.stats.gamesWon}W {player.stats.gamesLost}L {player.stats.draws}D · {player.stats.puzzlesSolved} puzzles
                   </span>

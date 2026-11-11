@@ -1,5 +1,6 @@
 import "server-only";
 import { ObjectId, type Document } from "mongodb";
+import { badgesFor, type BadgeId } from "@/lib/badges";
 import { getDb } from "@/lib/db/mongodb";
 import type { UserStats } from "@/lib/db/types";
 
@@ -17,6 +18,7 @@ export interface PublicPlayer {
   rank: number;
   /** Changes whenever the picture changes (for cache busting). Null when there is no picture. */
   avatarVersion: number | null;
+  badges: BadgeId[];
 }
 
 /** Score = 3 per win + 1 per draw + 2 per puzzle solved + 5 per lesson completed. */
@@ -47,6 +49,7 @@ function toPlayer(doc: Document): PublicPlayer {
     },
     score: Number(doc.score ?? 0),
     rank: Number(doc.rank ?? 0),
+    badges: badgesFor({ isOwner: doc.isOwner === true, createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date() }),
     avatarVersion: doc.avatar?.updatedAt instanceof Date ? doc.avatar.updatedAt.getTime() : null,
   };
 }

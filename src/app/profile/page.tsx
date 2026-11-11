@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Badges } from "@/components/Badges";
+import { badgesFor } from "@/lib/badges";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { requireUser } from "@/lib/auth";
 import { LESSONS } from "@/lib/content/lessons";
@@ -49,6 +51,9 @@ export default async function ProfilePage() {
       <main className="mx-auto max-w-3xl space-y-10 px-4 py-8 sm:px-6">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">{profile.username}</h1>
+          <div className="mt-1">
+            <Badges badges={badgesFor({ isOwner: profile.isOwner, createdAt: profile.createdAt })} />
+          </div>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
             {user.email}
           </p>

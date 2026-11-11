@@ -36,6 +36,8 @@ export interface UserProfileDoc {
   /** Show on the public players list. Missing means public. */
   isPublic?: boolean;
   avatar?: UserAvatar;
+  /** True for the site owner. Set on the server from the verified email, never by the client. */
+  isOwner?: boolean;
   preferences: UserPreferences;
   stats: UserStats;
   createdAt: Date;

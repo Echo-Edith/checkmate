@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { ChessGame, type FinishedGame } from "@/components/chess/ChessGame";
-import { TutorPanel } from "@/components/tutor/TutorPanel";
+import { TutorMascot } from "@/components/tutor/TutorMascot";
 
 export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -50,7 +50,9 @@ export function PlayClient({ loggedIn }: { loggedIn: boolean }) {
       )}
       <ChessGame
         onGameFinished={handleFinished}
-        renderTutor={({ fen, getEngineFacts }) => <TutorPanel fen={fen} loggedIn={loggedIn} getEngineFacts={getEngineFacts} />}
+        renderOverlay={({ fen, lastMoveSan, getEngineFacts }) => (
+          <TutorMascot fen={fen} lastMoveSan={lastMoveSan} loggedIn={loggedIn} getEngineFacts={getEngineFacts} />
+        )}
       />
     </div>
   );

@@ -133,7 +133,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md px-4 py-2.5 text-sm font-medium text-white transition-opacity disabled:opacity-60"
+          className="w-full rounded-md px-4 py-2.5 text-sm font-medium text-[color:var(--accent-fg)] transition-opacity disabled:opacity-60"
           style={{ background: "var(--accent)" }}
         >
           {loading ? "Please wait…" : copy.button}

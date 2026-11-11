@@ -183,7 +183,7 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
               <button
                 type="button"
                 onClick={nextPuzzle}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-white"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-[color:var(--accent-fg)]"
                 style={{ background: "var(--accent)" }}
               >
                 Next puzzle

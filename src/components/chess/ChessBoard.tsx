@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Chess, Color, Square } from "chess.js";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
 
@@ -9,6 +9,8 @@ const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 
 const LIGHT = "var(--sq-light, #eeeed2)";
 const DARK = "var(--sq-dark, #769656)";
+
+const SLIDE_MS = 220;
 
 export interface BoardMove {
   from: Square;
@@ -23,6 +25,10 @@ interface ChessBoardProps {
   interactive: boolean;
   lastMove: BoardMove | null;
   onMove: (from: Square, to: Square) => void;
+  /** Slide pieces to their new squares when the position changes (default true). */
+  animate?: boolean;
+  /** A suggested move, drawn as an arrow. */
+  hint?: BoardMove | null;
 }
 
 interface DragState {
@@ -30,9 +36,12 @@ interface DragState {
   size: number;
 }
 
-export function ChessBoard({ game, orientation, interactive, lastMove, onMove }: ChessBoardProps) {
+export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null }: ChessBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const wasSelectedRef = useRef(false);
+  const mountedRef = useRef(false);
+  const prevFenRef = useRef<string | null>(null);
+  const skipAnimationRef = useRef(false);
   const [selected, setSelected] = useState<Square | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
@@ -40,10 +49,69 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
   const fen = game.fen();
   const turn = game.turn();
 
+  // Display position of a square (0-7 from the top-left), depending on the board orientation.
+  function columnOf(square: Square): number {
+    const index = FILES.indexOf(square[0] as (typeof FILES)[number]);
+    return orientation === "w" ? index : 7 - index;
+  }
+  function rowOf(square: Square): number {
+    const rank = Number(square[1]);
+    return orientation === "w" ? 8 - rank : rank - 1;
+  }
+
   // Clear selection whenever the position changes.
   useEffect(() => {
     setSelected(null);
     setDrag(null);
+  }, [fen]);
+
+  // Slide the moved piece (and the rook when castling) from its old square to the new one.
+  useLayoutEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      prevFenRef.current = fen;
+      return;
+    }
+    if (prevFenRef.current === fen) return;
+    prevFenRef.current = fen;
+
+    if (skipAnimationRef.current) {
+      skipAnimationRef.current = false;
+      return;
+    }
+    const board = boardRef.current;
+    if (!animate || !lastMove || !board) return;
+
+    const size = board.getBoundingClientRect().width / 8;
+
+    const slide = (from: Square, to: Square) => {
+      const piece = board.querySelector<HTMLElement>(`[data-square="${to}"] [data-piece]`);
+      if (!piece || typeof piece.animate !== "function") return;
+      const dx = (columnOf(from) - columnOf(to)) * size;
+      const dy = (rowOf(from) - rowOf(to)) * size;
+      piece.style.zIndex = "20";
+      const animation = piece.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0px, 0px)" }],
+        { duration: SLIDE_MS, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+      animation.onfinish = () => {
+        piece.style.zIndex = "";
+      };
+    };
+
+    slide(lastMove.from, lastMove.to);
+
+    // Castling: the king moves two files, so also slide the rook.
+    const moved = game.get(lastMove.to);
+    const fileDistance = Math.abs(
+      FILES.indexOf(lastMove.from[0] as (typeof FILES)[number]) - FILES.indexOf(lastMove.to[0] as (typeof FILES)[number]),
+    );
+    if (moved?.type === "k" && fileDistance === 2) {
+      const rank = lastMove.to[1];
+      if (lastMove.to[0] === "g") slide(`h${rank}` as Square, `f${rank}` as Square);
+      else if (lastMove.to[0] === "c") slide(`a${rank}` as Square, `d${rank}` as Square);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fen]);
 
   // Legal targets for the selected piece: target square -> is capture.
@@ -85,6 +153,11 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
       setDrag(null);
       if (target && target !== from && legalTargets.has(target)) {
         setSelected(null);
+        // The piece was already carried to the square by the drag, so do not slide it again.
+        skipAnimationRef.current = true;
+        window.setTimeout(() => {
+          skipAnimationRef.current = false;
+        }, 1500);
         onMove(from, target);
       } else if (target === from && wasSelectedRef.current) {
         // Tapping an already selected piece deselects it.
@@ -129,6 +202,32 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
   const ranks = orientation === "w" ? [...RANKS].reverse() : [...RANKS];
   const draggedPiece = drag ? game.get(drag.from) : undefined;
 
+  // Arrow for the suggested move, in a 0-8 coordinate space that matches the board.
+  const arrow = useMemo(() => {
+    if (!hint) return null;
+    const x1 = columnOf(hint.from) + 0.5;
+    const y1 = rowOf(hint.from) + 0.5;
+    const x2 = columnOf(hint.to) + 0.5;
+    const y2 = rowOf(hint.to) + 0.5;
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length === 0) return null;
+    const ux = (x2 - x1) / length;
+    const uy = (y2 - y1) / length;
+    const headLength = 0.42;
+    const headHalfWidth = 0.24;
+    const tipX = x2 - ux * 0.08;
+    const tipY = y2 - uy * 0.08;
+    const baseX = tipX - ux * headLength;
+    const baseY = tipY - uy * headLength;
+    const points = [
+      `${tipX},${tipY}`,
+      `${baseX - uy * headHalfWidth},${baseY + ux * headHalfWidth}`,
+      `${baseX + uy * headHalfWidth},${baseY - ux * headHalfWidth}`,
+    ].join(" ");
+    return { x1: x1 + ux * 0.15, y1: y1 + uy * 0.15, x2: baseX + ux * 0.05, y2: baseY + uy * 0.05, points };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hint, orientation]);
+
   return (
     <>
       <div
@@ -156,6 +255,7 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
             const isTarget = legalTargets.has(square);
             const isCapture = legalTargets.get(square) === true;
             const isDragSource = drag?.from === square;
+            const isHint = hint !== null && (hint.from === square || hint.to === square);
 
             return (
               <div
@@ -172,6 +272,9 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
               >
                 {isLast && <div className="absolute inset-0" style={{ background: "rgba(255, 221, 0, 0.35)" }} />}
                 {isSelected && <div className="absolute inset-0" style={{ background: "rgba(20, 120, 255, 0.4)" }} />}
+                {isHint && (
+                  <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 0 0.7cqw rgba(34, 197, 94, 0.95)" }} />
+                )}
                 {checkSquare === square && (
                   <div
                     className="absolute inset-0"
@@ -198,6 +301,7 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
 
                 {piece && (
                   <span
+                    data-piece
                     className="relative leading-none"
                     style={{
                       fontSize: "9.5cqw",
@@ -221,6 +325,21 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove }:
               </div>
             );
           }),
+        )}
+
+        {arrow && (
+          <svg viewBox="0 0 8 8" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+            <line
+              x1={arrow.x1}
+              y1={arrow.y1}
+              x2={arrow.x2}
+              y2={arrow.y2}
+              stroke="rgba(34, 197, 94, 0.88)"
+              strokeWidth="0.17"
+              strokeLinecap="round"
+            />
+            <polygon points={arrow.points} fill="rgba(34, 197, 94, 0.88)" />
+          </svg>
         )}
       </div>
 

@@ -1,8 +1,10 @@
 /** Client-side helpers that apply saved preferences (theme, board colours, tutor). Browser only. */
 
+import type { BoardThemeId, SiteThemeId } from "@/lib/themes";
+
 export interface StoredPreferences {
-  theme?: "system" | "light" | "dark";
-  boardTheme?: "classic" | "green" | "blue";
+  theme?: SiteThemeId;
+  boardTheme?: BoardThemeId;
   tutorPersonality?: "teacher" | "coach" | "analyst";
 }
 

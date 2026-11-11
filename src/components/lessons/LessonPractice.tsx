@@ -73,7 +73,7 @@ export function LessonPractice({ lessonId, practice, loggedIn, alreadyCompleted,
               void complete(moves);
             }}
             disabled={saveState === "saving"}
-            className="rounded-md px-4 py-2 font-medium text-white disabled:opacity-60"
+            className="rounded-md px-4 py-2 font-medium text-[color:var(--accent-fg)] disabled:opacity-60"
             style={{ background: "var(--accent)" }}
           >
             {saveState === "saving" ? "Saving…" : "Mark lesson as complete"}

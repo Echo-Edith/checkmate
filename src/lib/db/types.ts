@@ -1,11 +1,12 @@
+import type { BoardThemeId, SiteThemeId } from "@/lib/themes";
 /**
  * Shape of documents stored in MongoDB.
  * Every user-owned document carries the verified Supabase user ID in `userId`.
  */
 
 export interface UserPreferences {
-  theme: "system" | "light" | "dark";
-  boardTheme: "classic" | "green" | "blue";
+  theme: SiteThemeId;
+  boardTheme: BoardThemeId;
   tutorPersonality: "teacher" | "coach" | "analyst";
 }
 

@@ -332,7 +332,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
               type="button"
               onClick={() => void runAnalysis()}
               disabled={engineStatus !== "ready"}
-              className="rounded-md px-4 py-1.5 font-medium text-white disabled:opacity-50"
+              className="rounded-md px-4 py-1.5 font-medium text-[color:var(--accent-fg)] disabled:opacity-50"
               style={{ background: "var(--accent)" }}
             >
               {engineStatus === "loading" ? "Loading engine…" : "Analyse game"}
@@ -381,7 +381,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="w-full max-w-[600px] space-y-3">
-              <ChessBoard game={boardGame} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} />
+              <ChessBoard game={boardGame} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} animate={false} />
               <div className="flex gap-2">
                 <button type="button" className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40" style={borderStyle} disabled={selected === 0} onClick={() => setSelected((s) => Math.max(0, s - 1))} aria-label="Previous move">
                   ‹

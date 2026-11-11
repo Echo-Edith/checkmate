@@ -1,50 +1,90 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 
 const FEATURES = [
-  { href: "/play", title: "Play", text: "Play against Stockfish at five levels, or with a friend on one board." },
-  { href: "/puzzles", title: "Puzzles", text: "Solve tactics with hints, streaks and accuracy tracking." },
-  { href: "/lessons", title: "Lessons", text: "Learn step by step, from the first move to endgames." },
-  { href: "/analyze", title: "Analyse", text: "Find your mistakes and missed chances, move by move." },
+  { href: "/play", icon: "♞", title: "Play", text: "Play Stockfish at five levels, or with a friend on one board." },
+  { href: "/puzzles", icon: "♜", title: "Puzzles", text: "Solve tactics with hints, streaks and accuracy tracking." },
+  { href: "/lessons", icon: "♝", title: "Lessons", text: "Learn step by step, from the first move to endgames." },
+  { href: "/analyze", icon: "♛", title: "Analyse", text: "Find your mistakes and missed chances, move by move." },
 ];
+
+const STEPS = [
+  { n: "1", title: "Play or study", text: "Pick a game, a lesson or a puzzle." },
+  { n: "2", title: "Tap the tutor", text: "Drag the little tutor next to the board and tap a question." },
+  { n: "3", title: "See the plan", text: "The engine checks the facts. The tutor explains them simply." },
+];
+
+/** Decorative board: a few squares with big pieces, pure CSS so it costs nothing to load. */
+function HeroBoard() {
+  const pieces: Record<number, string> = { 1: "♚", 10: "♞", 19: "♟", 28: "♜", 37: "♛", 46: "♝", 55: "♙", 60: "♘" };
+  return (
+    <div
+      className="float-slow grid aspect-square w-full max-w-[22rem] grid-cols-8 grid-rows-8 overflow-hidden rounded-2xl border shadow-2xl"
+      style={{ borderColor: "var(--border)", ["--r" as string]: "3deg", transform: "rotate(3deg)" }}
+      aria-hidden
+    >
+      {Array.from({ length: 64 }, (_, i) => {
+        const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
+        return (
+          <div
+            key={i}
+            className="flex items-center justify-center text-[1.6rem] leading-none"
+            style={{ background: dark ? "var(--sq-dark, #769656)" : "var(--sq-light, #eeeed2)", color: i < 32 ? "#1a1a1a" : "#fff", textShadow: i < 32 ? "none" : "0 1px 2px rgba(0,0,0,.6)" }}
+          >
+            {pieces[i] ?? ""}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default async function HomePage() {
   const user = await getCurrentUser();
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
-      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Learn chess with an AI tutor</h1>
-      <p className="mt-4 max-w-2xl text-lg" style={{ color: "var(--muted)" }}>
-        Lessons, puzzles, game analysis and a tutor that explains ideas in plain language. The engine checks the facts,
-        and the tutor explains them.
-      </p>
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-16">
+      <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+        <div>
+          <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+            <Image src="/logo.png" alt="" width={14} height={14} className="rounded-sm" style={{ background: "var(--accent)", padding: 1 }} />
+            AI chess tutor · free to learn
+          </span>
+          <h1 className="gradient-text mt-5 pb-1 text-4xl font-bold tracking-tight sm:text-6xl">Learn chess with a tutor that explains.</h1>
+          <p className="mt-5 max-w-xl text-lg" style={{ color: "var(--muted)" }}>
+            Lessons, puzzles, game analysis and a friendly tutor. The engine checks the facts, and the tutor explains them in plain words.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {user ? (
+              <Link href="/dashboard" className="btn-primary rounded-lg px-6 py-3 text-sm font-semibold">
+                Go to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/register" className="btn-primary rounded-lg px-6 py-3 text-sm font-semibold">
+                  Create free account
+                </Link>
+                <Link href="/play" className="card rounded-lg px-6 py-3 text-sm font-semibold">
+                  Play now
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-center lg:justify-end">
+          <HeroBoard />
+        </div>
+      </section>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        {user ? (
-          <Link href="/dashboard" className="rounded-md px-5 py-2.5 text-sm font-medium text-white" style={{ background: "var(--accent)" }}>
-            Go to dashboard
-          </Link>
-        ) : (
-          <>
-            <Link href="/register" className="rounded-md px-5 py-2.5 text-sm font-medium text-white" style={{ background: "var(--accent)" }}>
-              Create free account
-            </Link>
-            <Link href="/play" className="rounded-md border px-5 py-2.5 text-sm font-medium" style={{ borderColor: "var(--border)" }}>
-              Play now
-            </Link>
-          </>
-        )}
-      </div>
-
-      <ul className="mt-14 grid gap-4 sm:grid-cols-2">
+      <ul className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((feature) => (
           <li key={feature.href}>
-            <Link
-              href={feature.href}
-              className="block h-full rounded-lg border p-5 hover:opacity-90"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-            >
-              <h2 className="font-semibold">{feature.title}</h2>
+            <Link href={feature.href} className="card card-hover block h-full p-5">
+              <span className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: "color-mix(in srgb, var(--accent) 18%, transparent)", color: "var(--accent)" }}>
+                {feature.icon}
+              </span>
+              <h2 className="mt-4 font-semibold">{feature.title}</h2>
               <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                 {feature.text}
               </p>
@@ -52,6 +92,21 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
+
+      <section className="mt-16">
+        <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
+        <ol className="mt-5 grid gap-4 sm:grid-cols-3">
+          {STEPS.map((step) => (
+            <li key={step.n} className="card p-5">
+              <span className="btn-primary grid h-8 w-8 place-items-center rounded-full text-sm font-bold">{step.n}</span>
+              <h3 className="mt-3 font-semibold">{step.title}</h3>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                {step.text}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <p className="mt-12 text-xs" style={{ color: "var(--muted)" }}>
         Chess engine: Stockfish, licensed under the GNU GPL v3. See the notice in /stockfish/NOTICE.md.

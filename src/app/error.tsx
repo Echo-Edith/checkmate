@@ -10,7 +10,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
       <button
         type="button"
         onClick={reset}
-        className="mt-6 rounded-md px-4 py-2 text-sm font-medium text-white"
+        className="mt-6 rounded-md px-4 py-2 text-sm font-medium text-[color:var(--accent-fg)]"
         style={{ background: "var(--accent)" }}
       >
         Try again

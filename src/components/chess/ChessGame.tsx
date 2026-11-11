@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Color, Square } from "chess.js";
 import { ChessBoard } from "@/components/chess/ChessBoard";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
@@ -12,14 +12,14 @@ import {
   type PlayedMove,
   type PromotionPiece,
 } from "@/lib/chess-utils";
-import { formatScore } from "@/lib/engine/eval";
+import { winPercent } from "@/lib/engine/eval";
 import { getEngineFacts as fetchEngineFacts, type EngineFacts } from "@/lib/engine/facts";
 import { useStockfish } from "@/lib/engine/useStockfish";
 
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
 
 type Mode = "pvp" | "computer";
-type Tab = "moves" | "tutor" | "setup";
+type Tab = "moves" | "setup";
 
 /** `ms` is the engine's thinking time. Short times keep the game snappy, and weaker levels play fast. */
 const LEVELS = [
@@ -45,15 +45,17 @@ export interface FinishedGame {
 interface ChessGameProps {
   /** Called once when a game ends (checkmate, draw or resignation). */
   onGameFinished?: (game: FinishedGame) => void;
-  /** Content for the "Tutor" tab. */
-  renderTutor?: (context: {
+  /** Floating content (the tutor mascot) drawn on top of the page. */
+  renderOverlay?: (context: {
     fen: string;
+    /** Last move played, in SAN (for example "Nf3"), or null at the start. */
+    lastMoveSan: string | null;
     /** Runs Stockfish on the current position. Resolves to null if the engine is unavailable. */
     getEngineFacts: () => Promise<EngineFacts | null>;
   }) => ReactNode;
 }
 
-export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
+export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
   const [moves, setMoves] = useState<PlayedMove[]>([]);
   const [viewIndex, setViewIndex] = useState(0);
   const [orientation, setOrientation] = useState<Color>("w");
@@ -65,7 +67,8 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
   const [levelIndex, setLevelIndex] = useState(1);
   const [resigned, setResigned] = useState(false);
   const [thinking, setThinking] = useState(false);
-  const [hint, setHint] = useState<string | null>(null);
+  const [hint, setHint] = useState<{ text: string; from: Square; to: Square } | null>(null);
+  const [animate, setAnimate] = useState(true);
   const [hintBusy, setHintBusy] = useState(false);
   const [reported, setReported] = useState(false);
 
@@ -84,12 +87,21 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
   const isLatest = viewIndex === moves.length;
   const lastMove = viewIndex > 0 ? (moves[viewIndex - 1] ?? null) : null;
   const fen = game.fen();
+  const fenRef = useRef(fen);
+  fenRef.current = fen;
+
+  /** Jump around the move list. Pieces snap into place instead of sliding. */
+  const goTo = useCallback((next: number | ((current: number) => number)) => {
+    setAnimate(false);
+    setViewIndex(next);
+  }, []);
 
   const commitMove = useCallback(
     (from: Square, to: Square, promotion?: PromotionPiece) => {
       try {
         const next = replay(moves);
         const made = next.move({ from, to, promotion });
+        setAnimate(true);
         setMoves([...moves, { from: made.from, to: made.to, san: made.san }]);
         setViewIndex(moves.length + 1);
       } catch {
@@ -174,15 +186,31 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
   }
 
   async function requestHint() {
+    // A second tap hides the hint.
+    if (hint) {
+      setHint(null);
+      return;
+    }
     const instance = engine.current;
     if (!instance || hintBusy) return;
+    const asked = fen;
     setHintBusy(true);
     try {
-      const result = await instance.analyze(fen, { movetime: 600, skill: 20 });
-      const san = uciToSan(fen, result.bestMove);
-      setHint(san ? `Best move: ${san} (${formatScore(result.score)})` : "No hint available.");
+      const result = await instance.analyze(asked, { movetime: 700, skill: 20 });
+      // The position changed while the engine was thinking: this answer is out of date.
+      if (fenRef.current !== asked) return;
+      const move = parseUci(result.bestMove);
+      const san = uciToSan(asked, result.bestMove);
+      if (!move || !san) {
+        setHint(null);
+        return;
+      }
+      // Scores are from White's side. Turn them into "how good is this for the side to move".
+      const mine = game.turn() === "w" ? winPercent(result.score) : 100 - winPercent(result.score);
+      const verdict = mine >= 75 ? "You are clearly better." : mine >= 56 ? "You are a little better." : mine >= 44 ? "The position is balanced." : mine >= 25 ? "You are a little worse." : "This is a hard position.";
+      setHint({ text: `Try ${san}. ${verdict}`, from: move.from, to: move.to });
     } catch {
-      setHint("The engine could not analyse this position.");
+      if (fenRef.current === asked) setHint(null);
     } finally {
       setHintBusy(false);
     }
@@ -203,14 +231,14 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA")) return;
-      if (event.key === "ArrowLeft") setViewIndex((i) => Math.max(0, i - 1));
-      else if (event.key === "ArrowRight") setViewIndex((i) => Math.min(moves.length, i + 1));
-      else if (event.key === "Home") setViewIndex(0);
-      else if (event.key === "End") setViewIndex(moves.length);
+      if (event.key === "ArrowLeft") goTo((i) => Math.max(0, i - 1));
+      else if (event.key === "ArrowRight") goTo((i) => Math.min(moves.length, i + 1));
+      else if (event.key === "Home") goTo(0);
+      else if (event.key === "End") goTo(moves.length);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moves.length]);
+  }, [moves.length, goTo]);
 
   const humanTurn = mode === "pvp" || game.turn() === playerColor;
   const interactive = isLatest && !status.over && pending === null && humanTurn && !thinking;
@@ -227,9 +255,9 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
     return (
       <button
         type="button"
-        onClick={() => setViewIndex(index + 1)}
+        onClick={() => goTo(index + 1)}
         className="rounded px-2 py-0.5 text-left text-sm"
-        style={{ background: active ? "var(--accent)" : "transparent", color: active ? "#fff" : "inherit" }}
+        style={{ background: active ? "var(--accent)" : "transparent", color: active ? "var(--accent-fg)" : "inherit" }}
       >
         {move.san}
       </button>
@@ -245,7 +273,6 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
 
   const tabs: Array<{ key: Tab; label: string }> = [
     { key: "moves", label: "Moves" },
-    { key: "tutor", label: "Tutor" },
     { key: "setup", label: "Setup" },
   ];
 
@@ -261,7 +288,7 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
         >
           <span>{statusLine}</span>
           {!isLatest && (
-            <button type="button" onClick={() => setViewIndex(moves.length)} className="text-xs underline" style={{ color: "var(--muted)" }}>
+            <button type="button" onClick={() => goTo(moves.length)} className="text-xs underline" style={{ color: "var(--muted)" }}>
               Back to game
             </button>
           )}
@@ -273,13 +300,15 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
           interactive={interactive}
           lastMove={lastMove}
           onMove={handleMove}
+          animate={animate}
+          hint={hint ? { from: hint.from, to: hint.to } : null}
         />
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <button type="button" className={buttonClass} style={borderStyle} disabled={viewIndex === 0} onClick={() => setViewIndex((i) => Math.max(0, i - 1))} aria-label="Previous move">
+          <button type="button" className={buttonClass} style={borderStyle} disabled={viewIndex === 0} onClick={() => goTo((i) => Math.max(0, i - 1))} aria-label="Previous move">
             ‹
           </button>
-          <button type="button" className={buttonClass} style={borderStyle} disabled={isLatest} onClick={() => setViewIndex((i) => Math.min(moves.length, i + 1))} aria-label="Next move">
+          <button type="button" className={buttonClass} style={borderStyle} disabled={isLatest} onClick={() => goTo((i) => Math.min(moves.length, i + 1))} aria-label="Next move">
             ›
           </button>
           <button type="button" className={buttonClass} style={borderStyle} onClick={() => setOrientation((o) => (o === "w" ? "b" : "w"))}>
@@ -292,7 +321,7 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
             disabled={engineStatus !== "ready" || hintBusy || status.over || !humanTurn || !isLatest}
             onClick={requestHint}
           >
-            {hintBusy ? "…" : "Hint"}
+            {hintBusy ? "…" : hint ? "Hide hint" : "Best move"}
           </button>
           <button
             type="button"
@@ -303,14 +332,14 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
           >
             Resign
           </button>
-          <button type="button" className={`${buttonClass} ml-auto`} style={{ ...borderStyle, background: "var(--accent)", color: "#fff" }} onClick={() => startNewGame()}>
+          <button type="button" className={`${buttonClass} ml-auto`} style={{ ...borderStyle, background: "var(--accent)", color: "var(--accent-fg)" }} onClick={() => startNewGame()}>
             New game
           </button>
         </div>
 
         {hint && (
           <p className="rounded-md border px-3 py-2 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
-            {hint}
+            {hint.text}
           </p>
         )}
         {engineStatus === "error" && (
@@ -321,7 +350,7 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
       </div>
 
       {/* Side panel: tabs keep moves, tutor and setup one tap away without long scrolling */}
-      <aside className="rounded-lg border" style={borderStyle}>
+      <aside className="card">
         <div className="flex border-b" style={borderStyle} role="tablist">
           {tabs.map((item) => (
             <button
@@ -357,8 +386,6 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
                 ))}
               </div>
             ))}
-
-          {tab === "tutor" && renderTutor?.({ fen, getEngineFacts })}
 
           {tab === "setup" && (
             <fieldset className="space-y-3 text-sm" disabled={gameInProgress}>
@@ -397,6 +424,8 @@ export function ChessGame({ onGameFinished, renderTutor }: ChessGameProps) {
           )}
         </div>
       </aside>
+
+      {renderOverlay?.({ fen, lastMoveSan: lastMove?.san ?? null, getEngineFacts })}
 
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Choose promotion piece">

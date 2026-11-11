@@ -7,6 +7,8 @@
   --border: #e4e4e7;
   --surface: #fafafa;
   --accent: #15803d;
+  --accent-fg: #ffffff;
+  --glow: #22c55e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,52 +19,192 @@
     --border: #27272a;
     --surface: #131316;
     --accent: #4ade80;
+    --accent-fg: #052e16;
+    --glow: #22c55e;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60rem 28rem at 85% -8%, color-mix(in srgb, var(--glow) 16%, transparent), transparent 70%),
+    radial-gradient(44rem 24rem at -5% 4%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* User-selected theme (saved in the profile and mirrored in localStorage). */
+/* User-selected site themes (saved in the profile and mirrored in localStorage). */
 :root[data-theme="light"] {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #18181b;
   --muted: #71717a;
   --border: #e4e4e7;
   --surface: #fafafa;
   --accent: #15803d;
+  --accent-fg: #ffffff;
+  --glow: #22c55e;
 }
-
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --background: #0b0b0d;
   --foreground: #f4f4f5;
   --muted: #a1a1aa;
   --border: #27272a;
   --surface: #131316;
   --accent: #4ade80;
+  --accent-fg: #052e16;
+  --glow: #22c55e;
+}
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+  --background: #0b1020;
+  --foreground: #e0e7ff;
+  --muted: #94a3d8;
+  --border: #252d52;
+  --surface: #121933;
+  --accent: #818cf8;
+  --accent-fg: #0b1020;
+  --glow: #6366f1;
+}
+:root[data-theme="forest"] {
+  color-scheme: dark;
+  --background: #0d1a12;
+  --foreground: #dcfce7;
+  --muted: #86b99a;
+  --border: #1f3a2a;
+  --surface: #12241a;
+  --accent: #34d399;
+  --accent-fg: #052e16;
+  --glow: #10b981;
+}
+:root[data-theme="ocean"] {
+  color-scheme: light;
+  --background: #eaf6fb;
+  --foreground: #0c2d3f;
+  --muted: #4b7a92;
+  --border: #bfdcea;
+  --surface: #f7fcfe;
+  --accent: #0284c7;
+  --accent-fg: #ffffff;
+  --glow: #38bdf8;
+}
+:root[data-theme="sunset"] {
+  color-scheme: dark;
+  --background: #1c1114;
+  --foreground: #ffedd5;
+  --muted: #d4a58a;
+  --border: #4a2a2c;
+  --surface: #27171a;
+  --accent: #fb923c;
+  --accent-fg: #2a0f03;
+  --glow: #f97316;
+}
+:root[data-theme="rose"] {
+  color-scheme: light;
+  --background: #fff1f4;
+  --foreground: #3f0d1a;
+  --muted: #9a5265;
+  --border: #f5c6d2;
+  --surface: #fff8fa;
+  --accent: #e11d48;
+  --accent-fg: #ffffff;
+  --glow: #fb7185;
+}
+:root[data-theme="royal"] {
+  color-scheme: dark;
+  --background: #17102b;
+  --foreground: #f3e8ff;
+  --muted: #b79bd9;
+  --border: #3a2a63;
+  --surface: #1f1538;
+  --accent: #c084fc;
+  --accent-fg: #240a3d;
+  --glow: #a855f7;
+}
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --background: #f6efe2;
+  --foreground: #2b2015;
+  --muted: #7d6a52;
+  --border: #decdb0;
+  --surface: #fbf6ec;
+  --accent: #92400e;
+  --accent-fg: #fff7ed;
+  --glow: #d97706;
 }
 
 /* Board colour themes. */
-:root[data-board="classic"] {
-  --sq-light: #f0d9b5;
-  --sq-dark: #b58863;
+:root[data-board="green"] { --sq-light: #eeeed2; --sq-dark: #769656; }
+:root[data-board="classic"] { --sq-light: #f0d9b5; --sq-dark: #b58863; }
+:root[data-board="blue"] { --sq-light: #dee3e6; --sq-dark: #8ca2ad; }
+:root[data-board="purple"] { --sq-light: #e8e0f0; --sq-dark: #8877b3; }
+:root[data-board="ice"] { --sq-light: #e9f3f8; --sq-dark: #6fa8c7; }
+:root[data-board="coral"] { --sq-light: #fbe8dc; --sq-dark: #d9825b; }
+:root[data-board="slate"] { --sq-light: #c9ced6; --sq-dark: #5b6577; }
+
+/* Cards and buttons get a little depth. */
+.card {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px color-mix(in srgb, var(--glow) 35%, transparent);
 }
-:root[data-board="green"] {
-  --sq-light: #eeeed2;
-  --sq-dark: #769656;
+.card-hover { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.card-hover:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.06), 0 16px 32px -14px color-mix(in srgb, var(--glow) 55%, transparent);
 }
-:root[data-board="blue"] {
-  --sq-light: #dee3e6;
-  --sq-dark: #8ca2ad;
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--glow)));
+  color: var(--accent-fg);
+  box-shadow: 0 6px 18px -8px var(--accent);
 }
+.btn-primary:hover { opacity: 0.92; }
+.gradient-text {
+  background: linear-gradient(120deg, var(--foreground) 10%, var(--accent) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.nav-glass {
+  background: color-mix(in srgb, var(--background) 78%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+.float-slow { animation: float-slow 6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: no-preference) {
   button,
   a {
     transition: opacity 0.15s ease, background-color 0.15s ease;
   }
+}
+
+/* Tutor mascot animations (disabled for people who prefer reduced motion). */
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes mascot-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+@keyframes mascot-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.mascot-body { animation: mascot-bob 3s ease-in-out infinite; }
+.mascot-eyes { transform-box: fill-box; transform-origin: center; animation: mascot-blink 4.5s infinite; }
+.mascot-panel { animation: mascot-pop 0.15s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .mascot-body, .mascot-eyes, .mascot-panel, .float-slow { animation: none; }
 }

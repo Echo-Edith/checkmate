@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { BOARD_THEME_IDS, SITE_THEME_IDS } from "@/lib/themes";
 import { getOrCreateProfile, updateProfile } from "@/lib/db/profiles";
 
 const updateSchema = z
@@ -8,15 +9,16 @@ const updateSchema = z
     username: z
       .string()
       .trim()
-      .min(3)
-      .max(24)
-      .regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers and underscores only")
+      .min(1, "Pick a username")
+      .max(24, "Keep it to 24 characters or fewer")
+      // Any characters are fine (spaces, emoji, other languages), except invisible control characters.
+      .refine((value) => !/[\p{Cc}\u200B-\u200F\u202A-\u202E\u2066-\u2069]/u.test(value), "Remove hidden control characters")
       .optional(),
     bio: z.string().trim().max(280).optional(),
     preferences: z
       .object({
-        theme: z.enum(["system", "light", "dark"]).optional(),
-        boardTheme: z.enum(["classic", "green", "blue"]).optional(),
+        theme: z.enum(SITE_THEME_IDS).optional(),
+        boardTheme: z.enum(BOARD_THEME_IDS).optional(),
         tutorPersonality: z.enum(["teacher", "coach", "analyst"]).optional(),
       })
       .strict()

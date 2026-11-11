@@ -92,6 +92,16 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
         text: `You resigned — ${playerColor === "w" ? "Black" : "White"} wins`,
       }
     : baseStatus;
+  // How the game ended, from the player's side: Victory, Defeat or Draw (two-player games name the winner).
+  const outcome = !status.over
+    ? null
+    : status.result === "draw"
+      ? { title: "Draw", tone: "draw" as const }
+      : mode === "pvp"
+        ? { title: status.result === "w" ? "White wins" : "Black wins", tone: "win" as const }
+        : status.result === playerColor
+          ? { title: "Victory", tone: "win" as const }
+          : { title: "Defeat", tone: "loss" as const };
   const isLatest = viewIndex === moves.length;
   const lastMove = viewIndex > 0 ? (moves[viewIndex - 1] ?? null) : null;
   const fen = game.fen();
@@ -173,7 +183,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   const sayRef = useRef(voice.say);
   sayRef.current = voice.say;
   useEffect(() => {
-    if (status.over && moves.length > 0) sayRef.current(status.text);
+    if (outcome && moves.length > 0) sayRef.current(`${outcome.title}. ${status.text}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status.over]);
 
@@ -287,7 +297,9 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     ? "Computer is thinking…"
     : mode === "computer" && engineStatus === "loading"
       ? "Loading chess engine…"
-      : status.text;
+      : outcome
+        ? outcome.title
+        : status.text;
 
   const tabs: Array<{ key: Tab; label: string }> = [
     { key: "moves", label: "Moves" },
@@ -312,8 +324,19 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           )}
         </div>
 
-        {status.over && (
+        {outcome && (
           <div className="card mascot-panel flex flex-wrap items-center gap-2 p-3">
+            <div className="mb-1 w-full">
+              <p
+                className="text-3xl font-extrabold tracking-tight"
+                style={{ color: outcome.tone === "win" ? "var(--accent)" : outcome.tone === "loss" ? "#ef4444" : "var(--muted)" }}
+              >
+                {outcome.title}
+              </p>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                {status.text}
+              </p>
+            </div>
             <button type="button" className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold" onClick={() => startNewGame()}>
               Play again
             </button>

@@ -26,12 +26,18 @@ type Mode = "pvp" | "computer";
 type Tab = "moves" | "pieces" | "setup";
 
 /** `ms` is the engine's thinking time. Short times keep the game snappy, and weaker levels play fast. */
+/**
+ * How each level plays:
+ * - `blunder`: chance that the bot ignores the engine and plays a random legal move (makes the low levels truly easy).
+ * - `elo`: strength limit when the engine supports it. Otherwise `skill` and `depth` weaken it instead.
+ * - `depth`: how many moves ahead it looks. Low depth means short-sighted play.
+ */
 const LEVELS = [
-  { label: "Beginner", skill: 1, ms: 150 },
-  { label: "Casual", skill: 6, ms: 250 },
-  { label: "Club", skill: 12, ms: 400 },
-  { label: "Strong", skill: 17, ms: 600 },
-  { label: "Maximum", skill: 20, ms: 800 },
+  { label: "Beginner", skill: 0, depth: 1, elo: null, blunder: 0.3, ms: 150 },
+  { label: "Casual", skill: 3, depth: 3, elo: null, blunder: 0.12, ms: 250 },
+  { label: "Club", skill: 10, depth: 8, elo: 1600, blunder: 0, ms: 400 },
+  { label: "Strong", skill: 16, depth: 12, elo: 2200, blunder: 0, ms: 600 },
+  { label: "Maximum", skill: 20, depth: 0, elo: null, blunder: 0, ms: 1000 },
 ] as const;
 
 const buttonClass =
@@ -158,10 +164,23 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     setThinking(true);
 
     instance
-      .analyze(game.fen(), { movetime: level.ms, skill: level.skill })
+      .analyze(
+        game.fen(),
+        level.elo !== null && instance.supportsElo()
+          ? { elo: level.elo, movetime: level.ms }
+          : level.depth > 0
+            ? { skill: level.skill, depth: level.depth }
+            : { skill: level.skill, movetime: level.ms },
+      )
       .then((result) => {
         if (cancelled) return;
-        const move = parseUci(result.bestMove);
+        let move = parseUci(result.bestMove);
+        // Low levels sometimes play a random legal move, like a real beginner would.
+        if (level.blunder > 0 && Math.random() < level.blunder) {
+          const legal = game.moves({ verbose: true });
+          const pick = legal[Math.floor(Math.random() * legal.length)];
+          if (pick) move = { from: pick.from, to: pick.to, promotion: pick.promotion as PromotionPiece | undefined };
+        }
         if (move) commitMove(move.from, move.to, move.promotion);
         setThinking(false);
       })
@@ -173,7 +192,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
       cancelled = true;
       setThinking(false);
     };
-  }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, level.ms, engine, commitMove]);
+  }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, level.ms, level.depth, level.elo, level.blunder, engine, commitMove]);
 
   // Clear the hint whenever the position changes.
   useEffect(() => {

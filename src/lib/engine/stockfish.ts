@@ -25,6 +25,8 @@ export interface AnalyzeOptions {
   movetime?: number;
   /** UCI Skill Level 0-20 (default 20 = full strength). */
   skill?: number;
+  /** Playing strength in Elo (about 1320-3190). Ignored when the engine build does not support it. */
+  elo?: number;
 }
 
 type LineListener = (line: string) => void;
@@ -35,6 +37,7 @@ export class StockfishEngine {
   private chain: Promise<unknown> = Promise.resolve();
   private initPromise: Promise<void> | null = null;
   private disposed = false;
+  private optionNames = new Set<string>();
 
   init(): Promise<void> {
     this.initPromise ??= new Promise<void>((resolve, reject) => {
@@ -54,6 +57,10 @@ export class StockfishEngine {
       };
       worker.onmessage = (event: MessageEvent<unknown>) => {
         const line = typeof event.data === "string" ? event.data : "";
+        if (line.startsWith("option name ")) {
+          const name = line.slice("option name ".length).split(" type ")[0];
+          if (name) this.optionNames.add(name.trim());
+        }
         for (const listener of this.listeners) listener(line);
       };
 
@@ -72,6 +79,11 @@ export class StockfishEngine {
         .catch(reject);
     });
     return this.initPromise;
+  }
+
+  /** True when this engine build can limit its own strength by Elo. Known after init(). */
+  supportsElo(): boolean {
+    return this.optionNames.has("UCI_LimitStrength") && this.optionNames.has("UCI_Elo");
   }
 
   /** Runs one search. Searches are queued so they never overlap. */
@@ -108,7 +120,13 @@ export class StockfishEngine {
         this.listeners.add(listener);
       });
 
+      // Always send every strength setting, so an earlier search (like a hint at full strength) never leaks into this one.
       this.send(`setoption name Skill Level value ${skill}`);
+      if (this.supportsElo()) {
+        const limited = typeof options.elo === "number";
+        this.send(`setoption name UCI_LimitStrength value ${limited ? "true" : "false"}`);
+        if (limited) this.send(`setoption name UCI_Elo value ${Math.min(3190, Math.max(1320, Math.round(options.elo ?? 1320)))}`);
+      }
       this.send(`position fen ${fen}`);
       this.send(options.depth ? `go depth ${Math.round(options.depth)}` : `go movetime ${Math.round(options.movetime ?? 500)}`);
 

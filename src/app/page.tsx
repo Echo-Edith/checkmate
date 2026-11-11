@@ -3,16 +3,10 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 
 const FEATURES = [
-  { href: "/play", icon: "♞", title: "Play", text: "Play Stockfish at five levels, or with a friend on one board." },
-  { href: "/puzzles", icon: "♜", title: "Puzzles", text: "Solve tactics with hints, streaks and accuracy tracking." },
-  { href: "/lessons", icon: "♝", title: "Lessons", text: "Learn step by step, from the first move to endgames." },
-  { href: "/analyze", icon: "♛", title: "Analyse", text: "Find your mistakes and missed chances, move by move." },
-];
-
-const STEPS = [
-  { n: "1", title: "Play or study", text: "Pick a game, a lesson or a puzzle." },
-  { n: "2", title: "Tap the tutor", text: "Drag the little tutor next to the board and tap a question." },
-  { n: "3", title: "See the plan", text: "The engine checks the facts. The tutor explains them simply." },
+  { href: "/play", icon: "♞", title: "Play", text: "Play the computer or a friend." },
+  { href: "/puzzles", icon: "♜", title: "Puzzles", text: "Solve tactics with hints." },
+  { href: "/lessons", icon: "♝", title: "Lessons", text: "Learn step by step." },
+  { href: "/analyze", icon: "♛", title: "Analyse", text: "Find your mistakes." },
 ];
 
 /** Decorative board: a few squares with big pieces, pure CSS so it costs nothing to load. */
@@ -49,11 +43,11 @@ export default async function HomePage() {
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
             <Image src="/logo.png" alt="" width={14} height={14} className="rounded-sm" style={{ background: "var(--accent)", padding: 1 }} />
-            AI chess tutor · free to learn
+            AI chess tutor
           </span>
-          <h1 className="gradient-text mt-5 pb-1 text-4xl font-bold tracking-tight sm:text-6xl">Learn chess with a tutor that explains.</h1>
+          <h1 className="gradient-text mt-5 pb-1 text-4xl font-bold tracking-tight sm:text-6xl">Learn chess with a talking tutor.</h1>
           <p className="mt-5 max-w-xl text-lg" style={{ color: "var(--muted)" }}>
-            Lessons, puzzles, game analysis and a friendly tutor. The engine checks the facts, and the tutor explains them in plain words.
+            Lessons, puzzles and a tutor that talks.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {user ? (
@@ -92,21 +86,6 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
-
-      <section className="mt-16">
-        <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
-        <ol className="mt-5 grid gap-4 sm:grid-cols-3">
-          {STEPS.map((step) => (
-            <li key={step.n} className="card p-5">
-              <span className="btn-primary grid h-8 w-8 place-items-center rounded-full text-sm font-bold">{step.n}</span>
-              <h3 className="mt-3 font-semibold">{step.title}</h3>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                {step.text}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
 
       <p className="mt-12 text-xs" style={{ color: "var(--muted)" }}>
         Chess engine: Stockfish, licensed under the GNU GPL v3. See the notice in /stockfish/NOTICE.md.

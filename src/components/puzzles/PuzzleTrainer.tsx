@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SpeakButton } from "@/components/SpeakButton";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { TacticBoard } from "@/components/chess/TacticBoard";
 import { PUZZLES, type Difficulty, type Puzzle } from "@/lib/content/puzzles";
@@ -133,7 +134,7 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
           <Link href="/login" className="underline">
             Log in
           </Link>{" "}
-          to save your puzzle progress and use the Coach hints.
+          to save progress and get Coach hints.
         </p>
       )}
 
@@ -154,6 +155,10 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
             </p>
             <h2 className="mt-1 font-semibold">{current.title}</h2>
             <p className="mt-1 text-sm">Goal: {current.goal}</p>
+            <SpeakButton
+              className="mt-2"
+              text={`${current.title}. Goal: ${current.goal}.${hintLevel >= 1 ? ` Hint: ${current.hint}.` : ""}${hintLevel >= 2 && aiHint ? ` ${aiHint}` : ""}`}
+            />
 
             <div className="mt-3 space-y-2 text-sm">
               {hintLevel >= 1 && <p>Hint 1: {current.hint}</p>}
@@ -206,7 +211,7 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
                 style={{
                   ...borderStyle,
                   background: filter === item.key ? "var(--accent)" : "transparent",
-                  color: filter === item.key ? "#fff" : "inherit",
+                  color: filter === item.key ? "var(--accent-fg)" : "inherit",
                 }}
               >
                 {item.label}

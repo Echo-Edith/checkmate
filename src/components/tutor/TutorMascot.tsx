@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { EngineFacts } from "@/lib/engine/facts";
 import { loadPreferences } from "@/lib/preferences";
+import { SpeakerIcon } from "@/components/SpeakButton";
 import { askTutor, TutorClientError } from "@/lib/tutor/client";
+import { speak, stopSpeaking } from "@/lib/speech";
 import { PERSONAS, type Persona } from "@/lib/tutor/schema";
+import { useVoice } from "@/lib/useVoice";
 
 const MASCOT_SIZE = 64;
 const EDGE = 8;
@@ -14,9 +17,9 @@ const DRAG_THRESHOLD = 6;
 const MAX_MESSAGES = 30;
 
 const PERSONA_INFO: Record<Persona, { label: string; greeting: string }> = {
-  teacher: { label: "Teacher", greeting: "Hi! I am your teacher. Tap a button and I will explain in simple words." },
-  coach: { label: "Coach", greeting: "Hey, coach here. Tap a button and I will give you a push in the right direction." },
-  analyst: { label: "Analyst", greeting: "Analyst here. Tap a button and I will check the facts with the engine." },
+  teacher: { label: "Teacher", greeting: "Hi! I am your teacher. Tap a button." },
+  coach: { label: "Coach", greeting: "Coach here. Tap a button." },
+  analyst: { label: "Analyst", greeting: "Analyst here. Tap a button." },
 };
 
 interface Chat {
@@ -105,6 +108,11 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
   fenRef.current = fen;
   openRef.current = open;
 
+  const voice = useVoice();
+  const voiceOnRef = useRef(false);
+  voiceOnRef.current = voice.enabled;
+  const [speakingId, setSpeakingId] = useState<number | null>(null);
+
   const busy = phase !== "idle";
 
   // Starting position and saved settings (client only, so there is no server/client mismatch).
@@ -137,6 +145,9 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Stop talking when the page is left.
+  useEffect(() => () => stopSpeaking(), []);
 
   // Scroll to the newest message.
   useEffect(() => {
@@ -236,6 +247,10 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
       const final = await askTutor(build(facts ?? undefined), (text) => updateMessage(replyId, text));
       updateMessage(replyId, final);
       if (!openRef.current) setUnread(true);
+      if (voiceOnRef.current) {
+        setSpeakingId(replyId);
+        speak(final, () => setSpeakingId((current) => (current === replyId ? null : current)));
+      }
       if (fenRef.current !== askedFen) {
         addMessage("tutor", "The board has changed since you asked. Ask me again to look at the new position.");
       }
@@ -325,14 +340,27 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="grid h-7 w-7 place-items-center rounded-full text-lg leading-none" style={{ color: "var(--muted)" }}>
+            {voice.supported && (
+              <button
+                type="button"
+                onClick={() => voice.setEnabled(!voice.enabled)}
+                aria-pressed={voice.enabled}
+                aria-label={voice.enabled ? "Turn voice off" : "Turn voice on"}
+                title={voice.enabled ? "Voice on: replies are read aloud" : "Voice off"}
+                className="grid h-7 w-7 place-items-center rounded-full"
+                style={voice.enabled ? { background: "var(--accent)", color: "var(--accent-fg)" } : { color: "var(--muted)" }}
+              >
+                <SpeakerIcon off={!voice.enabled} />
+              </button>
+            )}
+            <button type="button" onClick={() => { stopSpeaking(); setSpeakingId(null); setOpen(false); }} aria-label="Close chat" className="grid h-7 w-7 place-items-center rounded-full text-lg leading-none" style={{ color: "var(--muted)" }}>
               ×
             </button>
           </header>
 
           <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3 text-sm" aria-live="polite">
             {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={message.id} className={`flex items-end gap-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <p
                   className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 leading-relaxed"
                   style={
@@ -343,11 +371,30 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
                 >
                   {message.text === "…" ? <Dots /> : message.text}
                 </p>
+                {message.role === "tutor" && voice.supported && message.text !== "…" && (
+                  <button
+                    type="button"
+                    aria-label={speakingId === message.id ? "Stop reading" : "Read this aloud"}
+                    onClick={() => {
+                      if (speakingId === message.id) {
+                        stopSpeaking();
+                        setSpeakingId(null);
+                      } else {
+                        setSpeakingId(message.id);
+                        speak(message.text, () => setSpeakingId((current) => (current === message.id ? null : current)));
+                      }
+                    }}
+                    className="mb-1 grid h-6 w-6 shrink-0 place-items-center rounded-full"
+                    style={{ color: speakingId === message.id ? "var(--accent)" : "var(--muted)" }}
+                  >
+                    <SpeakerIcon />
+                  </button>
+                )}
               </div>
             ))}
             {phase === "checking" && (
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                Checking the position with Stockfish…
+                Checking…
               </p>
             )}
           </div>
@@ -373,7 +420,7 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   maxLength={500}
-                  placeholder="Or type your own question…"
+                  placeholder="Ask anything…"
                   aria-label="Question for the tutor"
                   className="min-w-0 flex-1 rounded-full border bg-transparent px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)" }}
@@ -388,7 +435,7 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
               <Link href="/login" className="underline">
                 Log in
               </Link>{" "}
-              to chat with the tutor. It is free.
+              to chat with the tutor.
             </p>
           )}
         </section>

@@ -10,10 +10,7 @@ export default async function AnalyzePage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Game analysis</h1>
-      <p className="mb-6 mt-2 text-sm" style={{ color: "var(--muted)" }}>
-        Stockfish checks every move in your browser. The AI tutor then explains the engine's findings.
-      </p>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Game analysis</h1>
       <AnalysisClient loggedIn={Boolean(user)} />
     </main>
   );

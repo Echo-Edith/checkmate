@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SpeakButton } from "@/components/SpeakButton";
 import { LessonPractice } from "@/components/lessons/LessonPractice";
 import { getCurrentUser } from "@/lib/auth";
 import { getLesson, LESSONS } from "@/lib/content/lessons";
@@ -45,6 +46,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         {lesson.level}
       </p>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">{lesson.title}</h1>
+      <SpeakButton className="mt-3" text={`${lesson.title}. ${lesson.body.join(" ")}`} label="Listen to lesson" />
 
       <div className="mt-5 space-y-4 leading-relaxed">
         {lesson.body.map((paragraph) => (

@@ -15,6 +15,8 @@ import {
 import { winPercent } from "@/lib/engine/eval";
 import { getEngineFacts as fetchEngineFacts, type EngineFacts } from "@/lib/engine/facts";
 import { useStockfish } from "@/lib/engine/useStockfish";
+import { useVoice } from "@/lib/useVoice";
+import { SpeakerIcon } from "@/components/SpeakButton";
 
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
 
@@ -73,6 +75,7 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
   const [reported, setReported] = useState(false);
 
   const { status: engineStatus, error: engineError, engine } = useStockfish(true);
+  const voice = useVoice();
 
   const level = LEVELS[levelIndex] ?? LEVELS[1];
   const game = useMemo(() => replay(moves, viewIndex), [moves, viewIndex]);
@@ -161,6 +164,14 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
     setHint(null);
   }, [fen]);
 
+  // Say the result out loud when the game ends.
+  const sayRef = useRef(voice.say);
+  sayRef.current = voice.say;
+  useEffect(() => {
+    if (status.over && moves.length > 0) sayRef.current(status.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.over]);
+
   // Report a finished game once.
   useEffect(() => {
     if (!status.over || reported || moves.length === 0) return;
@@ -208,7 +219,9 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
       // Scores are from White's side. Turn them into "how good is this for the side to move".
       const mine = game.turn() === "w" ? winPercent(result.score) : 100 - winPercent(result.score);
       const verdict = mine >= 75 ? "You are clearly better." : mine >= 56 ? "You are a little better." : mine >= 44 ? "The position is balanced." : mine >= 25 ? "You are a little worse." : "This is a hard position.";
-      setHint({ text: `Try ${san}. ${verdict}`, from: move.from, to: move.to });
+      const text = `Try ${san}. ${verdict}`;
+      setHint({ text, from: move.from, to: move.to });
+      voice.say(text);
     } catch {
       if (fenRef.current === asked) setHint(null);
     } finally {
@@ -332,6 +345,19 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
           >
             Resign
           </button>
+          {voice.supported && (
+            <button
+              type="button"
+              className={`${buttonClass} inline-flex items-center gap-1.5`}
+              style={borderStyle}
+              aria-pressed={voice.enabled}
+              onClick={() => voice.setEnabled(!voice.enabled)}
+              title={voice.enabled ? "Voice is on" : "Voice is off"}
+            >
+              <SpeakerIcon off={!voice.enabled} />
+              {voice.enabled ? "Voice on" : "Voice off"}
+            </button>
+          )}
           <button type="button" className={`${buttonClass} ml-auto`} style={{ ...borderStyle, background: "var(--accent)", color: "var(--accent-fg)" }} onClick={() => startNewGame()}>
             New game
           </button>
@@ -344,7 +370,7 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
         )}
         {engineStatus === "error" && (
           <p role="alert" className="text-xs text-red-500">
-            {engineError} Switch to two-player mode in Setup, or check that the engine files were installed.
+            {engineError} Try two-player mode in Setup.
           </p>
         )}
       </div>
@@ -374,7 +400,7 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
           {tab === "moves" &&
             (rows.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
-                Moves will appear here.
+                No moves yet.
               </p>
             ) : (
               <div className="grid grid-cols-[2rem_1fr_1fr] items-center gap-y-0.5">
@@ -390,7 +416,7 @@ export function ChessGame({ onGameFinished, renderOverlay }: ChessGameProps) {
           {tab === "setup" && (
             <fieldset className="space-y-3 text-sm" disabled={gameInProgress}>
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                {gameInProgress ? "Settings are locked during a game. Start a new game to change them." : "Choose your opponent, then make a move."}
+                {gameInProgress ? "Locked during a game." : "Pick your opponent."}
               </p>
               <label className="flex items-center justify-between gap-2">
                 Opponent

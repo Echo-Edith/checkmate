@@ -1,8 +1,11 @@
 import "server-only";
 
-const DEFAULT_MODEL = "gemini-flash-latest";
-/** Tried in order if the first model is missing for this key. */
-const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+// A stable, fast model first. The "latest" alias can point at a slower preview model.
+const DEFAULT_MODEL = "gemini-2.5-flash";
+/** Tried in order if a model is missing, slow or overloaded. */
+const FALLBACK_MODELS = ["gemini-flash-latest", "gemini-2.0-flash"];
+/** Each try gets this long to start answering. Three tries still fit inside the 30 second function limit. */
+const ATTEMPT_TIMEOUT_MS = 9000;
 
 interface GeminiChunk {
   candidates?: Array<{
@@ -37,10 +40,13 @@ async function request(apiKey: string, model: string, body: Record<string, unkno
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
       },
     );
-  } catch {
+  } catch (error) {
+    // Say why in the Vercel log (never the key): a timeout looks different from a network failure.
+    const cause = (error as { cause?: { code?: string } }).cause?.code;
+    console.error("Gemini fetch failed:", error instanceof Error ? error.name : "unknown", cause ?? "");
     throw new GeminiError("The AI tutor did not respond in time. Please try again.", 504);
   }
 }
@@ -66,12 +72,21 @@ export async function streamGemini(system: string, user: string): Promise<Readab
   const plain = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 1500 } };
 
   let response: Response | undefined;
+  let timedOut: GeminiError | undefined;
   for (const model of models) {
-    response = await request(apiKey, model, fast);
-    if (response.status === 400) response = await request(apiKey, model, plain);
-    // 404 means this model does not exist for the key: try the next one. Any other answer is final.
-    if (response.status !== 404) break;
+    try {
+      response = await request(apiKey, model, fast);
+      if (response.status === 400) response = await request(apiKey, model, plain);
+      timedOut = undefined;
+    } catch (error) {
+      // Too slow or unreachable: try the next model.
+      if (error instanceof GeminiError) timedOut = error;
+      continue;
+    }
+    // Missing model, overloaded or a Google-side error: try the next one. Anything else is final.
+    if (response.status !== 404 && response.status !== 429 && response.status < 500) break;
   }
+  if (!response && timedOut) throw timedOut;
 
   if (!response || !response.ok || !response.body) {
     const status = response?.status ?? 0;

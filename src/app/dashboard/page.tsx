@@ -1,6 +1,8 @@
 import { Hub } from "@/components/dashboard/Hub";
 import { requireUser } from "@/lib/auth";
+import { LESSONS } from "@/lib/content/lessons";
 import { getOrCreateProfile } from "@/lib/db/profiles";
+import { getProgress } from "@/lib/db/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,15 @@ export default async function DashboardPage() {
     stats = profile.stats;
   } catch {
     dbError = true;
+  }
+
+  let nextLesson: { href: string; title: string } | null = null;
+  try {
+    const done = (await getProgress(user.id)).lessons;
+    const lesson = LESSONS.find((item) => !done.includes(item.id));
+    if (lesson) nextLesson = { href: `/lessons/${lesson.id}`, title: lesson.title };
+  } catch {
+    // The hub still works without progress.
   }
 
   const items: Array<[string, number]> = stats
@@ -51,7 +62,7 @@ export default async function DashboardPage() {
       </header>
 
       <div className="mt-6">
-        <Hub />
+        <Hub nextLesson={nextLesson} />
       </div>
 
       {dbError ? (

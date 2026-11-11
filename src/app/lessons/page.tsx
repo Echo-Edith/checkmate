@@ -25,6 +25,8 @@ export default async function LessonsPage() {
     }
   }
 
+  const upNext = LESSONS.find((lesson) => !completed.includes(lesson.id)) ?? LESSONS[0];
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">Lessons</h1>
@@ -33,6 +35,11 @@ export default async function LessonsPage() {
           ? `${completed.length} of ${LESSONS.length} lessons completed.`
           : "Log in to save your progress."}
       </p>
+      {upNext && (
+        <Link href={`/lessons/${upNext.id}`} className="btn-primary mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold">
+          {completed.length > 0 ? "Continue" : "Start"}: {upNext.title} →
+        </Link>
+      )}
 
       {LEVELS.map((level) => (
         <section key={level.key} className="mt-8">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Color, Square } from "chess.js";
 import { ChessBoard } from "@/components/chess/ChessBoard";
@@ -310,6 +311,25 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             </button>
           )}
         </div>
+
+        {status.over && (
+          <div className="card mascot-panel flex flex-wrap items-center gap-2 p-3">
+            <button type="button" className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold" onClick={() => startNewGame()}>
+              Play again
+            </button>
+            {mode === "computer" && (
+              <button type="button" className={buttonClass} style={borderStyle} onClick={() => startNewGame(playerColor === "w" ? "b" : "w")}>
+                Switch sides
+              </button>
+            )}
+            <Link href="/analyze" className={buttonClass} style={borderStyle}>
+              Analyse
+            </Link>
+            <Link href="/dashboard" className={`${buttonClass} ml-auto`} style={borderStyle}>
+              Menu
+            </Link>
+          </div>
+        )}
 
         <ChessBoard
           game={game}

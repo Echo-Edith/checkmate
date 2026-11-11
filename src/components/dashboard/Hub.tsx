@@ -29,7 +29,7 @@ function chip(active: boolean) {
 }
 
 /** The logged-in landing choices. Play opens a second step: bot or person. */
-export function Hub() {
+export function Hub({ nextLesson }: { nextLesson: { href: string; title: string } | null }) {
   const [panel, setPanel] = useState<Panel>("none");
   const [level, setLevel] = useState(1);
   const [color, setColor] = useState<"w" | "b">("w");
@@ -116,6 +116,18 @@ export function Hub() {
             Start game
           </Link>
         </div>
+      )}
+
+      {nextLesson && (
+        <Link href={nextLesson.href} className="btn-primary flex items-center justify-between gap-3 rounded-2xl px-5 py-4">
+          <span>
+            <span className="block text-xs font-medium opacity-80">Continue learning</span>
+            <span className="block text-base font-semibold">{nextLesson.title}</span>
+          </span>
+          <span aria-hidden className="text-2xl">
+            →
+          </span>
+        </Link>
       )}
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

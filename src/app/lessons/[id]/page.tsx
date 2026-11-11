@@ -1,0 +1,66 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { LessonPractice } from "@/components/lessons/LessonPractice";
+import { getCurrentUser } from "@/lib/auth";
+import { getLesson, LESSONS } from "@/lib/content/lessons";
+import { getProgress } from "@/lib/db/progress";
+
+export const dynamic = "force-dynamic";
+
+interface LessonPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: LessonPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const lesson = getLesson(id);
+  return { title: lesson ? `${lesson.title} — Checkm8` : "Lesson — Checkm8" };
+}
+
+export default async function LessonPage({ params }: LessonPageProps) {
+  const { id } = await params;
+  const lesson = getLesson(id);
+  if (!lesson) notFound();
+
+  const user = await getCurrentUser();
+  let alreadyCompleted = false;
+  if (user) {
+    try {
+      alreadyCompleted = (await getProgress(user.id)).lessons.includes(lesson.id);
+    } catch {
+      // Not fatal: the lesson is still readable.
+    }
+  }
+
+  const index = LESSONS.findIndex((item) => item.id === lesson.id);
+  const next = LESSONS[index + 1];
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <Link href="/lessons" className="text-sm underline" style={{ color: "var(--muted)" }}>
+        ← All lessons
+      </Link>
+      <p className="mt-4 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+        {lesson.level}
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight">{lesson.title}</h1>
+
+      <div className="mt-5 space-y-4 leading-relaxed">
+        {lesson.body.map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <LessonPractice
+          lessonId={lesson.id}
+          practice={lesson.practice}
+          loggedIn={Boolean(user)}
+          alreadyCompleted={alreadyCompleted}
+          nextLessonHref={next ? `/lessons/${next.id}` : null}
+        />
+      </div>
+    </main>
+  );
+}

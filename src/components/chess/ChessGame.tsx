@@ -13,6 +13,7 @@ import {
   type PromotionPiece,
 } from "@/lib/chess-utils";
 import { formatScore } from "@/lib/engine/eval";
+import { getEngineFacts as fetchEngineFacts, type EngineFacts } from "@/lib/engine/facts";
 import { useStockfish } from "@/lib/engine/useStockfish";
 
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
@@ -48,6 +49,8 @@ interface ChessGameProps {
     moves: readonly PlayedMove[];
     playerColor: Color;
     statusText: string;
+    /** Runs Stockfish on the current position. Resolves to null if the engine is unavailable. */
+    getEngineFacts: () => Promise<EngineFacts | null>;
   }) => ReactNode;
 }
 
@@ -184,6 +187,16 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
       setHintBusy(false);
     }
   }
+
+  const getEngineFacts = useCallback(async (): Promise<EngineFacts | null> => {
+    const instance = engine.current;
+    if (!instance || engineStatus !== "ready") return null;
+    try {
+      return await fetchEngineFacts(instance, fen);
+    } catch {
+      return null;
+    }
+  }, [engine, engineStatus, fen]);
 
   // Keyboard navigation through the move history.
   useEffect(() => {
@@ -385,7 +398,13 @@ export function ChessGame({ onGameFinished, renderExtras }: ChessGameProps) {
           )}
         </div>
 
-        {renderExtras?.({ fen, moves, playerColor: mode === "computer" ? playerColor : game.turn(), statusText: status.text })}
+        {renderExtras?.({
+          fen,
+          moves,
+          playerColor: mode === "computer" ? playerColor : game.turn(),
+          statusText: status.text,
+          getEngineFacts,
+        })}
       </aside>
 
       {pending && (

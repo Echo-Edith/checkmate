@@ -6,6 +6,7 @@ import {
   DEFAULT_STATS,
   type UserPreferences,
   type UserProfileDoc,
+  type UserStats,
 } from "@/lib/db/types";
 
 let indexesReady: Promise<void> | undefined;
@@ -56,6 +57,26 @@ export async function getOrCreateProfile(userId: string, email: string | undefin
 
   if (!profile) throw new Error("Could not load profile.");
   return profile;
+}
+
+/** Server-side only: sets absolute stat values (used by progress tracking). */
+export async function setStats(userId: string, fields: Partial<UserStats>): Promise<void> {
+  const profiles = await getProfiles();
+  const $set: Record<string, number | Date> = { updatedAt: new Date() };
+  for (const [key, value] of Object.entries(fields)) {
+    if (typeof value === "number") $set[`stats.${key}`] = value;
+  }
+  await profiles.updateOne({ userId }, { $set });
+}
+
+/** Server-side only: atomically increments stat counters (used when a game is saved). */
+export async function incrementStats(userId: string, fields: Partial<UserStats>): Promise<void> {
+  const profiles = await getProfiles();
+  const $inc: Record<string, number> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (typeof value === "number") $inc[`stats.${key}`] = value;
+  }
+  await profiles.updateOne({ userId }, { $inc, $set: { updatedAt: new Date() } });
 }
 
 export interface ProfileUpdate {

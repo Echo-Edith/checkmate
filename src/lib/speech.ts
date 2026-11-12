@@ -183,3 +183,62 @@ export function speak(text: string, onEnd?: () => void, persona: VoicePersona = 
       fallback();
     });
 }
+
+/**
+ * Reads a reply out loud while it is still being written, sentence by sentence, with the device voice (no waiting).
+ * Call `push` with the full text so far, then `finish` with the final text.
+ */
+export function createLiveSpeaker(onEnd?: () => void): { push: (text: string) => void; finish: (text: string) => void } {
+  stopSpeaking();
+  let spokenLength = 0;
+  let pendingUtterances = 0;
+  let finished = false;
+  let ended = false;
+
+  function checkEnd() {
+    if (finished && pendingUtterances === 0 && !ended) {
+      ended = true;
+      onEnd?.();
+    }
+  }
+
+  function say(chunk: string) {
+    const spoken = toSpokenText(chunk);
+    if (!spoken || !browserVoiceSupported()) return;
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    const voice = pickVoice();
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = "en-US";
+    }
+    utterance.rate = 1.08;
+    utterance.pitch = 1.1;
+    pendingUtterances += 1;
+    const done = () => {
+      pendingUtterances -= 1;
+      checkEnd();
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  return {
+    push(text: string) {
+      const rest = text.slice(spokenLength);
+      const match = /^[\s\S]*[.!?](?=\s)/.exec(rest);
+      if (!match) return;
+      say(match[0]);
+      spokenLength += match[0].length;
+    },
+    finish(text: string) {
+      const rest = text.slice(spokenLength);
+      spokenLength = text.length;
+      if (rest.trim()) say(rest);
+      finished = true;
+      checkEnd();
+    },
+  };
+}

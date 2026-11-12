@@ -6,7 +6,7 @@ import type { EngineFacts } from "@/lib/engine/facts";
 import { loadPreferences } from "@/lib/preferences";
 import { SpeakerIcon } from "@/components/SpeakButton";
 import { askTutor, TutorClientError } from "@/lib/tutor/client";
-import { speak, stopSpeaking } from "@/lib/speech";
+import { createLiveSpeaker, speak, stopSpeaking } from "@/lib/speech";
 import { PERSONAS, type Persona } from "@/lib/tutor/schema";
 import { useVoice } from "@/lib/useVoice";
 
@@ -244,13 +244,19 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
         factsCache.current = { fen: askedFen, facts };
       }
       setPhase("writing");
-      const final = await askTutor(build(facts ?? undefined), (text) => updateMessage(replyId, text));
-      updateMessage(replyId, final);
-      if (!openRef.current) setUnread(true);
+      // With voice on, read each sentence as soon as it arrives instead of waiting for the whole reply.
+      let live: ReturnType<typeof createLiveSpeaker> | null = null;
       if (voiceOnRef.current) {
         setSpeakingId(replyId);
-        speak(final, () => setSpeakingId((current) => (current === replyId ? null : current)), persona);
+        live = createLiveSpeaker(() => setSpeakingId((current) => (current === replyId ? null : current)));
       }
+      const final = await askTutor(build(facts ?? undefined), (text) => {
+        updateMessage(replyId, text);
+        live?.push(text);
+      });
+      updateMessage(replyId, final);
+      if (!openRef.current) setUnread(true);
+      live?.finish(final);
       if (fenRef.current !== askedFen) {
         addMessage("tutor", "The board has changed since you asked. Ask me again to look at the new position.");
       }

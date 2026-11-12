@@ -66,10 +66,10 @@ export async function streamGemini(system: string, user: string): Promise<Readab
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
   };
-  const fast = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } } };
+  const fast = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } } };
 
   // Turning thinking off makes answers much faster. If the model rejects that setting, retry without it.
-  const plain = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 1500 } };
+  const plain = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 450 } };
 
   let response: Response | undefined;
   let timedOut: GeminiError | undefined;

@@ -10,7 +10,7 @@ import type {
 } from "@/lib/tutor/schema";
 
 const RULES = `Rules you must always follow:
-- You are a chess tutor inside a learning website. Reply in plain text, no markdown headings, at most 170 words.
+- You are a chess tutor inside a learning website. Reply in plain text, no markdown headings, keep it very short: 2 or 3 short sentences, at most 50 words. No lists.
 - Use standard algebraic notation (for example Nf3, exd5) and square names.
 - You are NOT a chess engine. Never invent evaluations, scores, variations or claims that a move is "best", "winning" or "losing".
 - Only state an evaluation or call a move best if it appears in the ENGINE FACTS section of the message. If there are no engine facts, explain general ideas only and say that you have not checked the position with an engine.

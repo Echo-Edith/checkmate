@@ -75,7 +75,7 @@ export function AdminUsers() {
 
       {listing && (
         <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-          {listing.total} players · {listing.betaCount} beta testers
+          {listing.total} players · {listing.betaCount} testers
         </p>
       )}
       {error && (
@@ -105,7 +105,7 @@ export function AdminUsers() {
               className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${user.isBeta ? "border" : "btn-primary"}`}
               style={user.isBeta ? { borderColor: "var(--border)" } : undefined}
             >
-              {user.isBeta ? "Remove beta" : "Make beta tester"}
+              {user.isBeta ? "Remove tester" : "Make tester"}
             </button>
           </li>
         ))}

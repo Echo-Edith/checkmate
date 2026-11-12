@@ -16,6 +16,8 @@ const GUEST_ONLY_PATHS = ["/login", "/register", "/forgot-password"];
  * getUser() validates the token with Supabase (unlike getSession(), which trusts cookies).
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
+  // Lets server components (the maintenance gate) know which page is being opened.
+  request.headers.set("x-pathname", request.nextUrl.pathname);
   let response = NextResponse.next({ request });
   const { url, key } = getSupabaseConfig();
 

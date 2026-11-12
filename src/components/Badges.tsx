@@ -9,14 +9,14 @@ const INFO: Record<BadgeId, { label: string; icon?: string; title: string; style
     style: { background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#2a1500" },
   },
   beta: {
-    label: "Beta tester",
+    label: "Tester",
     icon: "",
-    title: "Joined during the beta",
+    title: "Helps test Checkm8",
     style: { background: "linear-gradient(135deg, #6366f1, #a855f7)", color: "#ffffff" },
   },
 };
 
-/** Small pills such as "Owner" and "Beta tester". Renders nothing when there are none. */
+/** Small pills such as "Owner" and "Tester". Renders nothing when there are none. */
 export function Badges({ badges, compact = false }: { badges: BadgeId[]; compact?: boolean }) {
   if (badges.length === 0) return null;
   return (

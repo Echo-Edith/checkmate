@@ -24,8 +24,9 @@ const PERSONA_PROMPTS: Record<Persona, string> = {
   analyst: `You are "Analyst": precise and honest. Review positions and games, explain why a move is a mistake or a missed opportunity, name recurring weaknesses, and suggest what to practise. Base every claim on the engine facts provided.`,
 };
 
-export function buildSystemPrompt(persona: Persona): string {
-  return `${PERSONA_PROMPTS[persona]}\n\n${RULES}`;
+export function buildSystemPrompt(persona: Persona, language = "English"): string {
+  const languageRule = language === "English" ? "" : `\n- Write your whole reply in ${language}. Keep move notation (like Nf3) as it is.`;
+  return `${PERSONA_PROMPTS[persona]}\n\n${RULES}${languageRule}`;
 }
 
 function sideToMove(fen: string): string {

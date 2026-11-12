@@ -19,6 +19,7 @@ import { getEngineFacts as fetchEngineFacts, type EngineFacts } from "@/lib/engi
 import { useStockfish } from "@/lib/engine/useStockfish";
 import { playSound, soundForSan } from "@/lib/sounds";
 import { useVoice } from "@/lib/useVoice";
+import { useT } from "@/lib/i18n/client";
 import { SpeakerIcon } from "@/components/SpeakButton";
 
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
@@ -88,6 +89,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   const [reported, setReported] = useState(false);
 
   const { status: engineStatus, error: engineError, engine } = useStockfish(true);
+  const t = useT();
   const voice = useVoice();
 
   // Assist = best-move hints, the hint arrow and the tutor. It exists only against the bot, and the player can switch it off.
@@ -385,9 +387,9 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
         : status.text;
 
   const tabs: Array<{ key: Tab; label: string }> = [
-    { key: "moves", label: "Moves" },
-    { key: "pieces", label: "Pieces" },
-    { key: "setup", label: "Setup" },
+    { key: "moves", label: t("game.moves") },
+    { key: "pieces", label: t("game.pieces") },
+    { key: "setup", label: t("game.setup") },
   ];
 
   return (
@@ -459,7 +461,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             ›
           </button>
           <button type="button" className={buttonClass} style={borderStyle} onClick={() => setOrientation((o) => (o === "w" ? "b" : "w"))}>
-            Flip
+            {t("game.flip")}
           </button>
           {assistOn && (
           <button
@@ -469,7 +471,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             disabled={engineStatus !== "ready" || hintBusy || status.over || !humanTurn || !isLatest}
             onClick={requestHint}
           >
-            {hintBusy ? "…" : hint ? "Hide hint" : "Best move"}
+            {hintBusy ? "…" : hint ? t("game.hide") : t("game.best")}
           </button>
           )}
           <button
@@ -479,7 +481,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             disabled={mode !== "computer" || !gameInProgress}
             onClick={() => setResigned(true)}
           >
-            Resign
+            {t("game.resign")}
           </button>
           {voice.supported && (
             <button
@@ -491,11 +493,11 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
               title={voice.enabled ? "Voice is on" : "Voice is off"}
             >
               <SpeakerIcon off={!voice.enabled} />
-              {voice.enabled ? "Voice on" : "Voice off"}
+              {voice.enabled ? t("game.voiceOn") : t("game.voiceOff")}
             </button>
           )}
           <button type="button" className={`${buttonClass} ml-auto`} style={{ ...borderStyle, background: "var(--accent)", color: "var(--accent-fg)" }} onClick={() => startNewGame()}>
-            New game
+            {t("game.new")}
           </button>
         </div>
 
@@ -536,7 +538,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           {tab === "moves" &&
             (rows.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
-                No moves yet.
+                {t("game.noMoves")}
               </p>
             ) : (
               <div className="grid grid-cols-[2rem_1fr_1fr] items-center gap-y-0.5">
@@ -559,8 +561,8 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
               <label className="flex items-center justify-between gap-2">
                 Opponent
                 <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} className="rounded-md border bg-transparent px-2 py-1" style={borderStyle}>
-                  <option value="computer">Computer</option>
-                  <option value="pvp">Two players</option>
+                  <option value="computer">{t("game.computer")}</option>
+                  <option value="pvp">{t("game.pvp")}</option>
                 </select>
               </label>
               {mode === "computer" && (
@@ -578,8 +580,8 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
                   <label className="flex items-center justify-between gap-2">
                     You play
                     <select value={playerColor} onChange={(e) => startNewGame(e.target.value as Color)} className="rounded-md border bg-transparent px-2 py-1" style={borderStyle}>
-                      <option value="w">White</option>
-                      <option value="b">Black</option>
+                      <option value="w">{t("color.w")}</option>
+                      <option value="b">{t("color.b")}</option>
                     </select>
                   </label>
                 </>

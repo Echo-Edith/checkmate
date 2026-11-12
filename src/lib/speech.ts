@@ -60,13 +60,24 @@ export function toSpokenText(input: string): string {
 }
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined;
+let cachedVoiceLang = "";
+
+/** Language code of the site, read from the language cookie. */
+function siteSpeechLang(): string {
+  const id = /(?:^|; )lang=([a-z]{2})/.exec(document.cookie)?.[1] ?? "en";
+  const map: Record<string, string> = { en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", ja: "ja-JP", zh: "zh-CN" };
+  return map[id] ?? "en-US";
+}
 
 /** Best-sounding voice the device has. "Natural"/"Neural" voices are far less robotic. */
 function pickVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice) return cachedVoice;
+  const want = siteSpeechLang();
+  if (cachedVoice && cachedVoiceLang === want) return cachedVoice;
+  cachedVoice = undefined;
+  cachedVoiceLang = want;
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) return null;
-  const english = voices.filter((voice) => voice.lang.toLowerCase().startsWith("en"));
+  const english = voices.filter((voice) => voice.lang.toLowerCase().startsWith(want.slice(0, 2)));
   const pool = english.length > 0 ? english : voices;
   const preferred = [/natural|neural|online/i, /premium|enhanced/i, /aria|jenny|guy|samantha|ava|allison|zira/i, /google/i];
   for (const pattern of preferred) {
@@ -93,7 +104,7 @@ function browserSpeak(spoken: string, onEnd?: () => void): void {
     utterance.voice = voice;
     utterance.lang = voice.lang;
   } else {
-    utterance.lang = "en-US";
+    utterance.lang = siteSpeechLang();
   }
   utterance.rate = 1.08;
   utterance.pitch = 1.1;
@@ -211,7 +222,7 @@ export function createLiveSpeaker(onEnd?: () => void): { push: (text: string) =>
       utterance.voice = voice;
       utterance.lang = voice.lang;
     } else {
-      utterance.lang = "en-US";
+      utterance.lang = siteSpeechLang();
     }
     utterance.rate = 1.08;
     utterance.pitch = 1.1;

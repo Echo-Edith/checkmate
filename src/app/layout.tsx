@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/badges";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getLang } from "@/lib/i18n/server";
 import { isMaintenanceOn, isTester } from "@/lib/db/settings";
 import { PreferenceBoot } from "@/components/PreferenceBoot";
 import { SiteNav } from "@/components/SiteNav";
@@ -41,9 +43,10 @@ async function blockedByMaintenance(): Promise<boolean> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const lang = await getLang();
   if (await blockedByMaintenance()) {
     return (
-      <html lang="en" suppressHydrationWarning>
+      <html lang={lang} suppressHydrationWarning>
         <head>
           <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         </head>
@@ -63,14 +66,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     );
   }
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-screen antialiased">
-        <PreferenceBoot />
-        <SiteNav />
-        {children}
+        <I18nProvider lang={lang}>
+          <PreferenceBoot />
+          <SiteNav />
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

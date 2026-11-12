@@ -2,19 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
-const LEVELS = [
-  { label: "Beginner", value: 0 },
-  { label: "Casual", value: 1 },
-  { label: "Club", value: 2 },
-  { label: "Strong", value: 3 },
-  { label: "Maximum", value: 4 },
-] as const;
-
-const COLORS = [
-  { label: "White", value: "w" },
-  { label: "Black", value: "b" },
-] as const;
+const LEVELS = [0, 1, 2, 3, 4] as const;
+const COLORS = ["w", "b"] as const;
 
 type Panel = "none" | "play" | "bot";
 
@@ -30,15 +22,16 @@ function chip(active: boolean) {
 
 /** The logged-in landing choices. Play opens a second step: bot or person. */
 export function Hub({ nextLesson }: { nextLesson: { href: string; title: string } | null }) {
+  const t = useT();
   const [panel, setPanel] = useState<Panel>("none");
   const [level, setLevel] = useState(1);
   const [color, setColor] = useState<"w" | "b">("w");
 
   const cards = [
-    { href: "/puzzles", icon: "♜", title: "Puzzles", text: "Solve tactics." },
-    { href: "/lessons", icon: "♝", title: "Lessons", text: "Learn step by step." },
-    { href: "/analyze", icon: "♛", title: "Analyse", text: "Review a game." },
-    { href: "/profile", icon: "♚", title: "Profile", text: "Themes and settings." },
+    { href: "/puzzles", icon: "♜", title: t("nav.puzzles"), text: t("hub.puzzlesSub") },
+    { href: "/lessons", icon: "♝", title: t("nav.lessons"), text: t("hub.lessonsSub") },
+    { href: "/analyze", icon: "♛", title: t("nav.analyse"), text: t("hub.analyseSub") },
+    { href: "/profile", icon: "♚", title: t("nav.profile"), text: t("hub.profileSub") },
   ];
 
   return (
@@ -51,9 +44,9 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
       >
         <span className="btn-primary grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-3xl">♞</span>
         <span className="flex-1">
-          <span className="block text-xl font-semibold">Play</span>
+          <span className="block text-xl font-semibold">{t("hub.play")}</span>
           <span className="block text-sm" style={{ color: "var(--muted)" }}>
-            A bot or a person
+            {t("hub.playSub")}
           </span>
         </span>
         <span aria-hidden className="text-xl" style={{ color: "var(--muted)" }}>
@@ -73,27 +66,27 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
             <span className="text-2xl" aria-hidden>
               ♞
             </span>
-            <span className="mt-2 block font-semibold">Play a bot</span>
+            <span className="mt-2 block font-semibold">{t("hub.bot")}</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
-              Pick how strong it is.
+              {t("hub.botSub")}
             </span>
           </button>
           <Link href="/online" className="card card-hover block p-5">
             <span className="text-2xl" aria-hidden>
               ♜
             </span>
-            <span className="mt-2 block font-semibold">Play online</span>
+            <span className="mt-2 block font-semibold">{t("hub.online")}</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
-              Other players on Checkm8.
+              {t("hub.onlineSub")}
             </span>
           </Link>
           <Link href="/play?mode=pvp" className="card card-hover block p-5">
             <span className="text-2xl" aria-hidden>
               ♚
             </span>
-            <span className="mt-2 block font-semibold">Same screen</span>
+            <span className="mt-2 block font-semibold">{t("hub.same")}</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
-              Two players, one device.
+              {t("hub.sameSub")}
             </span>
           </Link>
         </div>
@@ -102,27 +95,27 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
       {panel === "bot" && (
         <div className="card mascot-panel space-y-4 p-5">
           <div>
-            <p className="text-sm font-medium">Bot level</p>
+            <p className="text-sm font-medium">{t("hub.level")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {LEVELS.map((item) => (
-                <button key={item.value} type="button" onClick={() => setLevel(item.value)} aria-pressed={level === item.value} className="rounded-full border px-3 py-1.5 text-sm font-medium" style={chip(level === item.value)}>
-                  {item.label}
+                <button key={item} type="button" onClick={() => setLevel(item)} aria-pressed={level === item} className="rounded-full border px-3 py-1.5 text-sm font-medium" style={chip(level === item)}>
+                  {t(`level.${item}` as MessageKey)}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <p className="text-sm font-medium">You play</p>
+            <p className="text-sm font-medium">{t("hub.youPlay")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {COLORS.map((item) => (
-                <button key={item.value} type="button" onClick={() => setColor(item.value)} aria-pressed={color === item.value} className="rounded-full border px-3 py-1.5 text-sm font-medium" style={chip(color === item.value)}>
-                  {item.label}
+                <button key={item} type="button" onClick={() => setColor(item)} aria-pressed={color === item} className="rounded-full border px-3 py-1.5 text-sm font-medium" style={chip(color === item)}>
+                  {t(`color.${item}` as MessageKey)}
                 </button>
               ))}
             </div>
           </div>
           <Link href={`/play?mode=computer&level=${level}&color=${color}`} className="btn-primary inline-block rounded-lg px-6 py-2.5 text-sm font-semibold">
-            Start game
+            {t("hub.start")}
           </Link>
         </div>
       )}
@@ -130,7 +123,7 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
       {nextLesson && (
         <Link href={nextLesson.href} className="btn-primary flex items-center justify-between gap-3 rounded-2xl px-5 py-4">
           <span>
-            <span className="block text-xs font-medium opacity-80">Continue learning</span>
+            <span className="block text-xs font-medium opacity-80">{t("hub.continue")}</span>
             <span className="block text-base font-semibold">{nextLesson.title}</span>
           </span>
           <span aria-hidden className="text-2xl">

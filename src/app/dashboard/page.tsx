@@ -1,4 +1,5 @@
 import { Hub } from "@/components/dashboard/Hub";
+import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { LESSONS } from "@/lib/content/lessons";
 import { getOrCreateProfile } from "@/lib/db/profiles";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  const t = await getT();
 
   let username = "Player";
   let stats: Awaited<ReturnType<typeof getOrCreateProfile>>["stats"] | null = null;
@@ -32,12 +34,12 @@ export default async function DashboardPage() {
 
   const items: Array<[string, number]> = stats
     ? [
-        ["Games played", stats.gamesPlayed],
-        ["Wins", stats.gamesWon],
-        ["Losses", stats.gamesLost],
-        ["Draws", stats.draws],
-        ["Puzzles solved", stats.puzzlesSolved],
-        ["Lessons completed", stats.lessonsCompleted],
+        [t("stat.games"), stats.gamesPlayed],
+        [t("stat.wins"), stats.gamesWon],
+        [t("stat.losses"), stats.gamesLost],
+        [t("stat.draws"), stats.draws],
+        [t("stat.puzzles"), stats.puzzlesSolved],
+        [t("stat.lessons"), stats.lessonsCompleted],
       ]
     : [];
 
@@ -45,9 +47,9 @@ export default async function DashboardPage() {
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome, {username}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("dash.welcome", { name: username })}</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-            What do you want to do?
+            {t("dash.ask")}
           </p>
         </div>
         <form action="/auth/logout" method="post">
@@ -56,7 +58,7 @@ export default async function DashboardPage() {
             className="rounded-md border px-4 py-2 text-sm font-medium"
             style={{ borderColor: "var(--border)" }}
           >
-            Log out
+            {t("nav.logout")}
           </button>
         </form>
       </header>

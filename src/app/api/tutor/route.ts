@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { LANGS } from "@/lib/i18n/messages";
+import { getLang } from "@/lib/i18n/server";
 import { getPuzzle } from "@/lib/content/puzzles";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { GeminiError, streamGemini } from "@/lib/tutor/gemini";
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const lang = await getLang();
     let prompt;
     if (data.kind === "puzzle_hint") {
       const puzzle = getPuzzle(data.puzzleId);
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest) {
       prompt = buildUserPrompt({ request: data });
     }
 
-    const stream = await streamGemini(buildSystemPrompt(prompt.persona), prompt.text);
+    const stream = await streamGemini(buildSystemPrompt(prompt.persona, LANGS.find((item) => item.id === lang)?.ai), prompt.text);
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
     });

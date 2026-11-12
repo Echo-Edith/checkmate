@@ -2,12 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 
-const FEATURES = [
-  { href: "/play", icon: "♞", title: "Play", text: "Play the computer or a friend." },
-  { href: "/puzzles", icon: "♜", title: "Puzzles", text: "Solve tactics with hints." },
-  { href: "/lessons", icon: "♝", title: "Lessons", text: "Learn step by step." },
-  { href: "/analyze", icon: "♛", title: "Analyse", text: "Find your mistakes." },
+const FEATURES: Array<{ href: string; icon: string; title: MessageKey; text: MessageKey }> = [
+  { href: "/play", icon: "♞", title: "nav.play", text: "feat.play" },
+  { href: "/puzzles", icon: "♜", title: "nav.puzzles", text: "feat.puzzles" },
+  { href: "/lessons", icon: "♝", title: "nav.lessons", text: "feat.lessons" },
+  { href: "/analyze", icon: "♛", title: "nav.analyse", text: "feat.analyse" },
 ];
 
 /** Decorative board: a few squares with big pieces, pure CSS so it costs nothing to load. */
@@ -38,6 +40,7 @@ function HeroBoard() {
 export default async function HomePage() {
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
+  const t = await getT();
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-16">
@@ -45,11 +48,11 @@ export default async function HomePage() {
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
             <Image src="/logo.png" alt="" width={14} height={14} className="rounded-sm" style={{ background: "var(--accent)", padding: 1 }} />
-            AI chess tutor
+            {t("land.badge")}
           </span>
-          <h1 className="gradient-text mt-5 pb-1 text-4xl font-bold tracking-tight sm:text-6xl">Learn chess with a talking tutor.</h1>
+          <h1 className="gradient-text mt-5 pb-1 text-4xl font-bold tracking-tight sm:text-6xl">{t("land.title")}</h1>
           <p className="mt-5 max-w-xl text-lg" style={{ color: "var(--muted)" }}>
-            Lessons, puzzles and a tutor that talks.
+            {t("land.sub")}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {user ? (
@@ -59,10 +62,10 @@ export default async function HomePage() {
             ) : (
               <>
                 <Link href="/register" className="btn-primary rounded-lg px-6 py-3 text-sm font-semibold">
-                  Create free account
+                  {t("land.create")}
                 </Link>
                 <Link href="/play" className="card rounded-lg px-6 py-3 text-sm font-semibold">
-                  Play now
+                  {t("land.playNow")}
                 </Link>
               </>
             )}
@@ -80,9 +83,9 @@ export default async function HomePage() {
               <span className="grid h-11 w-11 place-items-center rounded-xl text-2xl" style={{ background: "color-mix(in srgb, var(--accent) 18%, transparent)", color: "var(--accent)" }}>
                 {feature.icon}
               </span>
-              <h2 className="mt-4 font-semibold">{feature.title}</h2>
+              <h2 className="mt-4 font-semibold">{t(feature.title)}</h2>
               <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                {feature.text}
+                {t(feature.text)}
               </p>
             </Link>
           </li>

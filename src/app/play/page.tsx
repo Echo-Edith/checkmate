@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PlayClient } from "@/components/chess/PlayClient";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -18,6 +19,8 @@ export default async function PlayPage({ searchParams }: PlayPageProps) {
   const level = Math.min(4, Math.max(0, Number.parseInt(params.level ?? "1", 10) || 0));
   const color = params.color === "b" ? "b" : "w";
   const user = await getCurrentUser();
+  // Logged-in users pick bot / online / same-screen on the hub first.
+  if (user && !params.mode) redirect("/dashboard");
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-4 sm:px-6">

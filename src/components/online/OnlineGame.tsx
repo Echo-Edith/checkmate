@@ -113,6 +113,7 @@ export function OnlineGame({ id }: { id: string }) {
     if (before === "waiting" && status === "active") playSound("notify");
     if (before !== "finished" && status === "finished") {
       const timer = window.setTimeout(() => {
+        window.dispatchEvent(new Event("checkm8:check-achievements"));
         if (view.result === "1/2-1/2") playSound("draw");
         else if (!view.myColor) playSound("draw");
         else playSound((view.result === "1-0") === (view.myColor === "w") ? "win" : "lose");
@@ -254,6 +255,12 @@ export function OnlineGame({ id }: { id: string }) {
             <p className="text-3xl font-extrabold tracking-tight" style={{ color: outcome.tone === "win" ? "var(--accent)" : outcome.tone === "loss" ? "#ef4444" : "var(--muted)" }}>
               {outcome.title}
             </p>
+            {view.myRatingChange !== null && (
+              <p className="text-sm font-semibold" style={{ color: view.myRatingChange >= 0 ? "var(--accent)" : "#ef4444" }}>
+                Rating {view.myRatingChange >= 0 ? "+" : ""}
+                {view.myRatingChange}
+              </p>
+            )}
           </div>
         )}
         <p role="status" className="text-sm font-medium">

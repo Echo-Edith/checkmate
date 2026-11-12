@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badges } from "@/components/Badges";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 import { badgesFor } from "@/lib/badges";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { requireUser } from "@/lib/auth";
@@ -34,9 +35,12 @@ export default async function ProfilePage() {
     // After the profile exists, so a brand-new account never races to create it twice.
     const ownRef = await getOwnPlayerRef(user.id);
 
+    const unlocked = new Set((profile.achievements ?? []).map((item) => item.id));
     const { puzzles } = progress;
     const accuracy = puzzles.attempts > 0 ? `${Math.round((puzzles.correct / puzzles.attempts) * 100)}%` : "—";
     const stats: Array<[string, string]> = [
+      ["Rating", `${profile.rating ?? 1200}${(profile.ratingGames ?? 0) < 5 ? "?" : ""}`],
+      ["Peak rating", String(profile.peakRating ?? profile.rating ?? 1200)],
       ["Games played", String(profile.stats.gamesPlayed)],
       ["Wins", String(profile.stats.gamesWon)],
       ["Losses", String(profile.stats.gamesLost)],
@@ -104,6 +108,31 @@ export default async function ProfilePage() {
           <Link href="/analyze" className="mt-3 inline-block text-sm underline">
             Analyse a game →
           </Link>
+        </section>
+
+        <section aria-labelledby="achievements-heading">
+          <h2 id="achievements-heading" className="mb-3 text-lg font-semibold">
+            Achievements ({unlocked.size}/{ACHIEVEMENTS.length})
+          </h2>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {ACHIEVEMENTS.map((item) => {
+              const done = unlocked.has(item.id);
+              return (
+                <li key={item.id} className="card flex items-center gap-3 px-3 py-2.5" style={{ opacity: done ? 1 : 0.55 }}>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xl" style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)", filter: done ? "none" : "grayscale(1)" }} aria-hidden>
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{item.name}</span>
+                    <span className="block text-xs" style={{ color: "var(--muted)" }}>
+                      {done ? "Unlocked · " : "Locked · "}
+                      {item.text}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section aria-labelledby="settings-heading">

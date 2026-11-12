@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Badges } from "@/components/Badges";
 import { FriendButton } from "@/components/friends/FriendButton";
 import { Avatar } from "@/components/Avatar";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 import { getPublicPlayer } from "@/lib/db/public";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
   const accuracy = stats.puzzlesAttempted > 0 ? Math.round((stats.puzzlesSolved / stats.puzzlesAttempted) * 100) : null;
 
   const items: Array<[string, string | number]> = [
+    ["Rating", `${player.rating}${player.ratedGames < 5 ? "?" : ""}`],
+    ["Peak rating", player.peakRating],
     ["Games", stats.gamesPlayed],
     ["Wins", stats.gamesWon],
     ["Losses", stats.gamesLost],
@@ -59,10 +62,10 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
         </div>
         <div className="text-right">
           <p className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
-            #{player.rank}
+            {player.rank > 0 ? `#${player.rank}` : "Unrated"}
           </p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>
-            {player.score} score
+            {player.rating} rating{player.ratedGames < 5 ? " (provisional)" : ""}
           </p>
         </div>
       </header>
@@ -83,6 +86,25 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </div>
         ))}
       </dl>
+
+      <section className="mt-8" aria-labelledby="achievements-heading">
+        <h2 id="achievements-heading" className="mb-3 text-lg font-semibold">
+          Achievements ({player.achievements.length}/{ACHIEVEMENTS.length})
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {ACHIEVEMENTS.filter((item) => player.achievements.includes(item.id)).map((item) => (
+            <li key={item.id} title={`${item.name}: ${item.text}`} className="card flex items-center gap-2 px-3 py-1.5 text-sm">
+              <span aria-hidden>{item.icon}</span>
+              {item.name}
+            </li>
+          ))}
+          {player.achievements.length === 0 && (
+            <li className="text-sm" style={{ color: "var(--muted)" }}>
+              None yet.
+            </li>
+          )}
+        </ul>
+      </section>
     </main>
   );
 }

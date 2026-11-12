@@ -34,8 +34,10 @@ export function PlayClient({ loggedIn, initialMode, initialLevel, initialColor }
             resigned: game.resigned,
           }),
         });
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-        setSaveMessage(response.ok ? "Game saved to your profile." : (data.error ?? "Could not save the game."));
+        const data = (await response.json().catch(() => ({}))) as { error?: string; ratingDelta?: number | null };
+        const rating = typeof data.ratingDelta === "number" ? ` Rating ${data.ratingDelta >= 0 ? "+" : ""}${data.ratingDelta}.` : "";
+        setSaveMessage(response.ok ? `Game saved to your profile.${rating}` : (data.error ?? "Could not save the game."));
+        if (response.ok) window.dispatchEvent(new Event("checkm8:check-achievements"));
       } catch {
         setSaveMessage("Could not save the game. Check your connection.");
       }

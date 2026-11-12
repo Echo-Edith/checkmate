@@ -89,6 +89,7 @@ export function FriendsPanel() {
       if (!response.ok) throw new Error(data.error ?? "Something went wrong.");
       setMessage(action === "request" ? (data.result === "accepted" ? "You are now friends!" : "Request sent.") : (done ?? null));
       await refresh();
+      window.dispatchEvent(new Event("checkm8:check-achievements"));
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

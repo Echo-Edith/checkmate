@@ -2,7 +2,8 @@ import "server-only";
 import { Chess, type Square } from "chess.js";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "@/lib/db/mongodb";
-import { incrementStats } from "@/lib/db/profiles";
+import { kFactor, ratingChange } from "@/lib/elo";
+import { applyRatingDelta, countOnlineGame, getRatingInfo, incrementStats } from "@/lib/db/profiles";
 
 /**
  * Online games between two signed-in users. The server is the referee: it replays every move with
@@ -25,6 +26,8 @@ interface OnlineGameDoc {
   result: Result | null;
   reason: string | null;
   drawOffer: Seat | null;
+  /** Rating points gained or lost by each side once the game has ended. */
+  ratingDelta?: { w: number; b: number };
   /** When set, only this user can join (a challenge to a friend). Such games are not listed publicly. */
   invite?: string | null;
   version: number;
@@ -46,6 +49,8 @@ export interface OnlineGameView {
   drawOffer: Seat | null;
   version: number;
   canJoin: boolean;
+  /** Rating points you gained or lost in this game (null until it is worked out). */
+  myRatingChange: number | null;
 }
 
 export interface LobbyEntry {
@@ -117,6 +122,7 @@ function toView(doc: OnlineGameDoc, userId: string): OnlineGameView {
     reason: doc.reason,
     drawOffer: doc.drawOffer,
     version: doc.version,
+    myRatingChange: myColor && doc.ratingDelta ? doc.ratingDelta[myColor] : null,
     canJoin: doc.status === "waiting" && myColor === null && (!doc.invite || doc.invite === userId) && Date.now() - doc.createdAt.getTime() < WAIT_MS,
   };
 }
@@ -278,6 +284,23 @@ async function settle(doc: OnlineGameDoc): Promise<void> {
   };
   try {
     await Promise.all([incrementStats(doc.white, stats("w")), incrementStats(doc.black, stats("b"))]);
+
+    // Elo: both ratings are read before either changes, so the two changes always match up.
+    const [whiteInfo, blackInfo] = await Promise.all([getRatingInfo(doc.white), getRatingInfo(doc.black)]);
+    const whiteScore = doc.result === "1-0" ? 1 : doc.result === "0-1" ? 0 : 0.5;
+    const delta = {
+      w: ratingChange(whiteInfo.rating, blackInfo.rating, whiteScore, kFactor(whiteInfo.ratingGames, whiteInfo.rating)),
+      b: ratingChange(blackInfo.rating, whiteInfo.rating, 1 - whiteScore, kFactor(blackInfo.ratingGames, blackInfo.rating)),
+    };
+    await Promise.all([
+      applyRatingDelta(doc.white, delta.w),
+      applyRatingDelta(doc.black, delta.b),
+      countOnlineGame(doc.white, outcome("w") === "win"),
+      countOnlineGame(doc.black, outcome("b") === "win"),
+    ]);
+    // Show the change to both players. The version goes up so their next poll picks it up.
+    const col = await games();
+    await col.updateOne({ _id: doc._id }, { $set: { ratingDelta: delta }, $inc: { version: 1 } });
     const db = await getDb();
     const base = { moves: doc.moves.join(" "), result: doc.result, mode: "pvp", level: null, resigned: doc.reason === "resignation", plies: doc.moves.length, createdAt: new Date() };
     await db.collection("games").insertMany([

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getStatus } from "@/lib/chess-utils";
 import { countGames, insertGame, listGames, MAX_GAMES_PER_USER, type GameDoc } from "@/lib/db/games";
-import { getOrCreateProfile, incrementStats } from "@/lib/db/profiles";
+import { botRatingChange } from "@/lib/elo";
+import { applyRatingDelta, getOrCreateProfile, getRatingInfo, incrementStats } from "@/lib/db/profiles";
 
 const bodySchema = z
   .object({
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Only games against the computer count toward win/loss statistics.
+    let ratingDelta: number | null = null;
     if (mode === "computer") {
       const won = (result === "1-0" && color === "w") || (result === "0-1" && color === "b");
       const draw = result === "1/2-1/2";
@@ -97,9 +99,14 @@ export async function POST(request: NextRequest) {
         gamesLost: !won && !draw ? 1 : 0,
         draws: draw ? 1 : 0,
       });
+
+      // Rating moves a little against the bot, and never above the bot cap.
+      const info = await getRatingInfo(user.id);
+      ratingDelta = botRatingChange(info.rating, level, won ? 1 : draw ? 0.5 : 0, info.ratingGames);
+      await applyRatingDelta(user.id, ratingDelta);
     }
 
-    return NextResponse.json({ id, result });
+    return NextResponse.json({ id, result, ratingDelta });
   } catch (error) {
     console.error("POST /api/games failed:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Could not save the game" }, { status: 500 });

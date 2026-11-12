@@ -19,5 +19,5 @@ export function pieceGlyph(type: PieceSymbol): string {
 export function pieceStyle(color: Color): CSSProperties {
   return color === "w"
     ? { color: "#ffffff", textShadow: "0 0 2px #000, 0 0 1px #000, 0 1px 1px #000" }
-    : { color: "#161616", textShadow: "0 0 1px rgba(255,255,255,0.35)" };
+    : { color: "var(--piece-b, #161616)", textShadow: "var(--piece-b-shadow, 0 0 1px rgba(255,255,255,0.35))" };
 }

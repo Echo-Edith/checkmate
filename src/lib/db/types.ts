@@ -40,6 +40,13 @@ export interface UserProfileDoc {
   isOwner?: boolean;
   /** Beta tester badge. Only the owner can change this, from the owner panel. */
   isBeta?: boolean;
+  /** Elo rating. Missing means 1200. Only the server changes it. */
+  rating?: number;
+  ratingGames?: number;
+  peakRating?: number;
+  onlineGames?: number;
+  onlineWins?: number;
+  achievements?: Array<{ id: string; at: Date; seen: boolean }>;
   preferences: UserPreferences;
   stats: UserStats;
   createdAt: Date;

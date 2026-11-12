@@ -36,6 +36,7 @@ export function LessonPractice({ lessonId, practice, loggedIn, alreadyCompleted,
         throw new Error(data.error ?? "Could not save progress.");
       }
       setSaveState("saved");
+      window.dispatchEvent(new Event("checkm8:check-achievements"));
     } catch (err) {
       setSaveState("error");
       setError(err instanceof Error ? err.message : "Could not save progress.");

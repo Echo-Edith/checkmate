@@ -66,7 +66,7 @@ export function ThemeSwitcher({ loggedIn }: { loggedIn: boolean }) {
       {open && (
         <div
           role="menu"
-          className="mascot-panel absolute right-0 z-40 mt-2 w-56 rounded-xl border p-1.5 shadow-xl"
+          className="mascot-panel absolute right-0 z-40 mt-2 max-h-[70vh] w-56 overflow-y-auto rounded-xl border p-1.5 shadow-xl"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
           {SITE_THEMES.map((option) => (

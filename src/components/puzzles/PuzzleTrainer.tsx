@@ -67,6 +67,7 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
         if (!response.ok || !data.puzzles) throw new Error(data.error ?? "Could not save.");
         setStats(data.puzzles);
         setMessage(null);
+        window.dispatchEvent(new Event("checkm8:check-achievements"));
       } catch (err) {
         setMessage(err instanceof Error ? err.message : "Could not save progress.");
       }

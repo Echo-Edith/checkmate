@@ -1,6 +1,7 @@
 import "server-only";
 import type { Collection } from "mongodb";
 import { isOwnerEmail } from "@/lib/badges";
+import { MIN_RATING, START_RATING } from "@/lib/elo";
 import { getDb } from "@/lib/db/mongodb";
 import {
   DEFAULT_PREFERENCES,
@@ -138,4 +139,38 @@ export async function setAvatar(userId: string, avatar: { data: string; type: Us
 export async function clearAvatar(userId: string): Promise<void> {
   const profiles = await getProfiles();
   await profiles.updateOne({ userId }, { $unset: { avatar: "" }, $set: { updatedAt: new Date() } });
+}
+
+/** Current rating and how many rated games it is based on. */
+export async function getRatingInfo(userId: string): Promise<{ rating: number; ratingGames: number }> {
+  const profiles = await getProfiles();
+  const doc = await profiles.findOne({ userId }, { projection: { rating: 1, ratingGames: 1 } });
+  return { rating: doc?.rating ?? START_RATING, ratingGames: doc?.ratingGames ?? 0 };
+}
+
+/** Adds points to a rating (or removes them) and counts the game. Also keeps the highest rating reached. */
+export async function applyRatingDelta(userId: string, delta: number): Promise<number> {
+  const profiles = await getProfiles();
+  const next = { $max: [MIN_RATING, { $add: [{ $ifNull: ["$rating", START_RATING] }, delta] }] };
+  const updated = await profiles.findOneAndUpdate(
+    { userId },
+    [
+      {
+        $set: {
+          rating: next,
+          peakRating: { $max: [{ $ifNull: ["$peakRating", START_RATING] }, next] },
+          ratingGames: { $add: [{ $ifNull: ["$ratingGames", 0] }, 1] },
+          updatedAt: new Date(),
+        },
+      },
+    ],
+    { returnDocument: "after", projection: { rating: 1 } },
+  );
+  return updated?.rating ?? START_RATING;
+}
+
+/** Counts a finished online game (and a win) for the achievements. */
+export async function countOnlineGame(userId: string, won: boolean): Promise<void> {
+  const profiles = await getProfiles();
+  await profiles.updateOne({ userId }, { $inc: { onlineGames: 1, onlineWins: won ? 1 : 0 } });
 }

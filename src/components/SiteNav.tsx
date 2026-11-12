@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AchievementToaster } from "@/components/AchievementToaster";
 import { FriendsNavLink } from "@/components/friends/FriendsNavLink";
 import { SoundToggle } from "@/components/SoundToggle";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -19,6 +20,7 @@ export async function SiteNav() {
   const user = await getCurrentUser();
 
   return (
+    <>
     <header className="nav-glass sticky top-0 z-30 border-b" style={{ borderColor: "var(--border)" }}>
       <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 text-sm sm:px-6 sm:py-3" aria-label="Main">
         <Link href="/" className="mr-3 flex items-center gap-2 text-base font-semibold tracking-tight">
@@ -63,5 +65,7 @@ export async function SiteNav() {
         </span>
       </nav>
     </header>
+    {user && <AchievementToaster />}
+    </>
   );
 }

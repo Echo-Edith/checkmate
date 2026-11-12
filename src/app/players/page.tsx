@@ -25,7 +25,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">Players</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-        Score: 3 per win, 1 per draw, 2 per puzzle, 5 per lesson.
+        Ranked by Elo rating. Everyone starts at 1200. A ? means only a few games so far.
       </p>
 
       <form action="/players" className="mt-4 flex gap-2">
@@ -56,7 +56,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
           {players.map((player) => (
             <li key={player.id}>
               <Link href={`/players/${player.id}`} className="card card-hover flex items-center gap-3 px-4 py-3">
-                <span className="w-9 shrink-0 text-center text-lg font-semibold">{MEDALS[player.rank] ?? `#${player.rank}`}</span>
+                <span className="w-9 shrink-0 text-center text-lg font-semibold">{player.rank > 0 ? (MEDALS[player.rank] ?? `#${player.rank}`) : "–"}</span>
                 <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
@@ -69,10 +69,10 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
                 </span>
                 <span className="text-right">
                   <span className="block text-lg font-semibold" style={{ color: "var(--accent)" }}>
-                    {player.score}
+                    {player.rank > 0 ? `${player.rating}${player.ratedGames < 5 ? "?" : ""}` : "—"}
                   </span>
                   <span className="block text-xs" style={{ color: "var(--muted)" }}>
-                    score
+                    {player.rank > 0 ? "rating" : "unrated"}
                   </span>
                 </span>
               </Link>

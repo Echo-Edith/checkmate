@@ -214,6 +214,32 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     };
   }, [mode, engineStatus, resigned, isLatest, baseStatus.over, pending, game, playerColor, level.skill, level.ms, level.depth, level.elo, level.blunder, engine, commitMove]);
 
+  // Tutor: when a piece is picked up, find the best square for that piece.
+  const [pickedSquare, setPickedSquare] = useState<Square | null>(null);
+  const [best, setBest] = useState<{ fen: string; from: Square; to: Square } | null>(null);
+  useEffect(() => {
+    if (!assistOn || !pickedSquare || engineStatus !== "ready" || status.over || !isLatest) return;
+    if (game.turn() !== playerColor && mode === "computer") return;
+    const instance = engine.current;
+    if (!instance) return;
+    const asked = fen;
+    const options = game.moves({ square: pickedSquare, verbose: true });
+    if (options.length === 0) return;
+    const ucis = options.map((m) => `${m.from}${m.to}${m.promotion ?? ""}`);
+    let cancelled = false;
+    instance
+      .analyze(asked, { movetime: 350, skill: 20, searchMoves: ucis })
+      .then((result) => {
+        const move = parseUci(result.bestMove);
+        if (!cancelled && move && fenRef.current === asked) setBest({ fen: asked, from: move.from, to: move.to });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedSquare, fen, assistOn, engineStatus]);
+
   // Clear the hint whenever the position changes, or when assist is turned off.
   useEffect(() => {
     setHint(null);
@@ -420,6 +446,9 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
           onMove={handleMove}
           animate={animate}
           hint={assistOn && hint ? { from: hint.from, to: hint.to } : null}
+          showTargets={assistOn}
+          bestTarget={assistOn && best && best.fen === fen && best.from === pickedSquare ? best.to : null}
+          onSelectChange={setPickedSquare}
         />
 
         <div className="flex flex-wrap items-center gap-1.5">

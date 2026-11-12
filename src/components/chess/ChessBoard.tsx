@@ -29,6 +29,12 @@ interface ChessBoardProps {
   animate?: boolean;
   /** A suggested move, drawn as an arrow. */
   hint?: BoardMove | null;
+  /** Tutor help: tint every square the selected piece can go to. */
+  showTargets?: boolean;
+  /** Tutor help: the best square for the selected piece. */
+  bestTarget?: Square | null;
+  /** Tells the parent which piece is selected. */
+  onSelectChange?: (square: Square | null) => void;
 }
 
 interface DragState {
@@ -36,7 +42,7 @@ interface DragState {
   size: number;
 }
 
-export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null }: ChessBoardProps) {
+export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange }: ChessBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const wasSelectedRef = useRef(false);
   const mountedRef = useRef(false);
@@ -113,6 +119,11 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fen]);
+
+  useEffect(() => {
+    onSelectChange?.(selected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   // Legal targets for the selected piece: target square -> is capture.
   const legalTargets = useMemo(() => {
@@ -274,6 +285,17 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
                 {isSelected && <div className="absolute inset-0" style={{ background: "rgba(20, 120, 255, 0.4)" }} />}
                 {isHint && (
                   <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 0 0.7cqw rgba(34, 197, 94, 0.95)" }} />
+                )}
+                {showTargets && isTarget && (
+                  <div className="absolute inset-0" style={{ background: "rgba(34, 197, 94, 0.28)" }} />
+                )}
+                {isTarget && bestTarget === square && (
+                  <>
+                    <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 0 0.8cqw rgba(250, 204, 21, 0.98)", background: "rgba(250, 204, 21, 0.3)" }} />
+                    <span className="absolute right-0.5 top-0 text-[3cqw] leading-none" style={{ color: "#facc15", textShadow: "0 0 3px #000" }} aria-label="best square">
+                      ★
+                    </span>
+                  </>
                 )}
                 {checkSquare === square && (
                   <div

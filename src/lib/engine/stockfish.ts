@@ -27,6 +27,8 @@ export interface AnalyzeOptions {
   skill?: number;
   /** Playing strength in Elo (about 1320-3190). Ignored when the engine build does not support it. */
   elo?: number;
+  /** Only consider these moves (UCI, for example "e2e4"). */
+  searchMoves?: string[];
 }
 
 type LineListener = (line: string) => void;
@@ -128,7 +130,8 @@ export class StockfishEngine {
         if (limited) this.send(`setoption name UCI_Elo value ${Math.min(3190, Math.max(1320, Math.round(options.elo ?? 1320)))}`);
       }
       this.send(`position fen ${fen}`);
-      this.send(options.depth ? `go depth ${Math.round(options.depth)}` : `go movetime ${Math.round(options.movetime ?? 500)}`);
+      const restrict = options.searchMoves?.length ? ` searchmoves ${options.searchMoves.join(" ")}` : "";
+      this.send((options.depth ? `go depth ${Math.round(options.depth)}` : `go movetime ${Math.round(options.movetime ?? 500)}`) + restrict);
 
       const line = await finished;
       const bestMove = line.split(" ")[1] ?? "";

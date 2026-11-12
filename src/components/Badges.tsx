@@ -1,16 +1,16 @@
 import type { CSSProperties } from "react";
 import type { BadgeId } from "@/lib/badges";
 
-const INFO: Record<BadgeId, { label: string; icon: string; title: string; style: CSSProperties }> = {
+const INFO: Record<BadgeId, { label: string; icon?: string; title: string; style: CSSProperties }> = {
   owner: {
     label: "Owner",
-    icon: "👑",
+    icon: "",
     title: "Built Checkm8",
     style: { background: "linear-gradient(135deg, #f59e0b, #f97316)", color: "#2a1500" },
   },
   beta: {
     label: "Beta tester",
-    icon: "🧪",
+    icon: "",
     title: "Joined during the beta",
     style: { background: "linear-gradient(135deg, #6366f1, #a855f7)", color: "#ffffff" },
   },
@@ -30,7 +30,6 @@ export function Badges({ badges, compact = false }: { badges: BadgeId[]; compact
             className={`inline-flex items-center gap-1 rounded-full font-semibold ${compact ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"}`}
             style={info.style}
           >
-            <span aria-hidden>{info.icon}</span>
             {info.label}
           </span>
         );

@@ -7,7 +7,6 @@ import { listPublicPlayers, type PublicPlayer } from "@/lib/db/public";
 export const metadata: Metadata = { title: "Players — Checkm8" };
 export const dynamic = "force-dynamic";
 
-const MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
 export default async function PlayersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
@@ -56,7 +55,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
           {players.map((player) => (
             <li key={player.id}>
               <Link href={`/players/${player.id}`} className="card card-hover flex items-center gap-3 px-4 py-3">
-                <span className="w-9 shrink-0 text-center text-lg font-semibold">{player.rank > 0 ? (MEDALS[player.rank] ?? `#${player.rank}`) : "–"}</span>
+                <span className="w-9 shrink-0 text-center text-lg font-semibold">{player.rank > 0 ? `#${player.rank}` : "–"}</span>
                 <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">

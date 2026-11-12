@@ -71,7 +71,7 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
             style={panel === "bot" ? { borderColor: "var(--accent)" } : undefined}
           >
             <span className="text-2xl" aria-hidden>
-              🤖
+              ♞
             </span>
             <span className="mt-2 block font-semibold">Play a bot</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
@@ -80,7 +80,7 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
           </button>
           <Link href="/online" className="card card-hover block p-5">
             <span className="text-2xl" aria-hidden>
-              🌍
+              ♜
             </span>
             <span className="mt-2 block font-semibold">Play online</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>
@@ -89,7 +89,7 @@ export function Hub({ nextLesson }: { nextLesson: { href: string; title: string 
           </Link>
           <Link href="/play?mode=pvp" className="card card-hover block p-5">
             <span className="text-2xl" aria-hidden>
-              👥
+              ♚
             </span>
             <span className="mt-2 block font-semibold">Same screen</span>
             <span className="block text-sm" style={{ color: "var(--muted)" }}>

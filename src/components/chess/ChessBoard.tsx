@@ -45,6 +45,7 @@ interface DragState {
 export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange }: ChessBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const wasSelectedRef = useRef(false);
+  const prevCountRef = useRef(32);
   const mountedRef = useRef(false);
   const prevFenRef = useRef<string | null>(null);
   const skipAnimationRef = useRef(false);
@@ -76,10 +77,14 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
     if (!mountedRef.current) {
       mountedRef.current = true;
       prevFenRef.current = fen;
+      prevCountRef.current = game.board().flat().filter(Boolean).length;
       return;
     }
     if (prevFenRef.current === fen) return;
     prevFenRef.current = fen;
+    const count = game.board().flat().filter(Boolean).length;
+    const wasCapture = prevCountRef.current > count;
+    prevCountRef.current = count;
 
     if (skipAnimationRef.current) {
       skipAnimationRef.current = false;
@@ -97,9 +102,33 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
       const dy = (rowOf(from) - rowOf(to)) * size;
       piece.style.zIndex = "20";
       const animation = piece.animate(
-        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0px, 0px)" }],
-        { duration: SLIDE_MS, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+        [
+          { transform: `translate(${dx}px, ${dy}px) scale(1)`, offset: 0 },
+          { transform: `translate(${dx * 0.5}px, ${dy * 0.5}px) scale(1.28)`, offset: 0.45 },
+          { transform: "translate(0px, 0px) scale(1.12)", offset: 0.8 },
+          { transform: "translate(0px, 0px) scale(0.94, 1.06)", offset: 0.9 },
+          { transform: "translate(0px, 0px) scale(1)", offset: 1 },
+        ],
+        { duration: SLIDE_MS + 130, easing: "cubic-bezier(0.25, 0.8, 0.3, 1)" },
       );
+      // A ring that grows from the landing square.
+      const square = piece.parentElement;
+      if (square && typeof square.animate === "function") {
+        const ring = document.createElement("div");
+        ring.style.cssText = `position:absolute;inset:0;border-radius:${wasCapture ? "50%" : "12%"};pointer-events:none;z-index:15;border:0.6cqw solid ${wasCapture ? "rgba(239,68,68,0.9)" : "rgba(255,255,255,0.85)"};`;
+        square.appendChild(ring);
+        const burst = ring.animate(
+          [
+            { transform: "scale(0.4)", opacity: 0.95 },
+            { transform: wasCapture ? "scale(1.7)" : "scale(1.3)", opacity: 0 },
+          ],
+          { duration: wasCapture ? 520 : 380, delay: SLIDE_MS * 0.6, easing: "ease-out", fill: "both" },
+        );
+        burst.onfinish = () => ring.remove();
+      }
+      if (wasCapture) {
+        piece.animate([{ filter: "brightness(1.8)" }, { filter: "brightness(1)" }], { duration: 400, delay: SLIDE_MS * 0.6 });
+      }
       animation.onfinish = () => {
         piece.style.zIndex = "";
       };
@@ -328,6 +357,9 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
                     style={{
                       fontSize: "9.5cqw",
                       opacity: isDragSource ? 0.3 : 1,
+                      transform: isSelected && !drag ? "translateY(-6%) scale(1.14)" : "none",
+                      transition: "transform 140ms ease-out, filter 140ms",
+                      filter: isSelected && !drag ? "drop-shadow(0 4px 3px rgba(0,0,0,0.45))" : "none",
                       ...pieceStyle(piece.color),
                     }}
                   >

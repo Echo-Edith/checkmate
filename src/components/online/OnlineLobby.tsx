@@ -8,6 +8,7 @@ import type { LobbyEntry } from "@/lib/db/online";
 interface Lobby {
   open: LobbyEntry[];
   mine: LobbyEntry[];
+  challenges: LobbyEntry[];
 }
 
 const colorName = (color: "w" | "b") => (color === "w" ? "White" : "Black");
@@ -99,6 +100,22 @@ export function OnlineLobby() {
           </p>
         )}
       </section>
+
+      {lobby && lobby.challenges.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-lg font-semibold">Challenges from friends</h2>
+          <ul className="space-y-2">
+            {lobby.challenges.map((entry) => (
+              <li key={entry.id}>
+                <Link href={`/online/${entry.id}`} className="card card-hover flex items-center justify-between gap-3 px-4 py-3" style={{ borderColor: "var(--accent)" }}>
+                  <span className="min-w-0 truncate font-medium">{entry.creatorName} challenged you</span>
+                  <span className="btn-primary rounded-lg px-4 py-1.5 text-sm font-semibold">Accept</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">Open games</h2>

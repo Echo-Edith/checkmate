@@ -4,9 +4,11 @@ import { Chess, type Square } from "chess.js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChatBox } from "@/components/chat/ChatBox";
 import { ChessBoard } from "@/components/chess/ChessBoard";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
 import type { OnlineGameView } from "@/lib/db/online";
+import { playSound, soundForSan } from "@/lib/sounds";
 
 const REASONS: Record<string, string> = {
   checkmate: "Checkmate",
@@ -83,6 +85,42 @@ export function OnlineGame({ id }: { id: string }) {
   const history = useMemo(() => chess.history({ verbose: true }), [chess]);
   const last = history[history.length - 1];
   const lastMove = last ? { from: last.from, to: last.to } : null;
+
+  // Sound for every new move, mine and my opponent's. Moves that were already there when the page opened stay silent.
+  const playedPlies = useRef<number | null>(null);
+  const loaded = view !== null;
+  useEffect(() => {
+    if (!loaded) return;
+    if (playedPlies.current === null) {
+      playedPlies.current = moves.length;
+      return;
+    }
+    if (moves.length > playedPlies.current) {
+      const san = moves[moves.length - 1];
+      if (san) playSound(soundForSan(san));
+    }
+    playedPlies.current = moves.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moves.length, loaded]);
+
+  // A ding when an opponent joins, and a result sound when the game ends.
+  const previousStatus = useRef<OnlineGameView["status"] | null>(null);
+  const status = view?.status ?? null;
+  useEffect(() => {
+    const before = previousStatus.current;
+    previousStatus.current = status;
+    if (!before || !view) return;
+    if (before === "waiting" && status === "active") playSound("notify");
+    if (before !== "finished" && status === "finished") {
+      const timer = window.setTimeout(() => {
+        if (view.result === "1/2-1/2") playSound("draw");
+        else if (!view.myColor) playSound("draw");
+        else playSound((view.result === "1-0") === (view.myColor === "w") ? "win" : "lose");
+      }, 350);
+      return () => window.clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   async function act(body: Record<string, unknown>): Promise<OnlineGameView | null> {
     setBusy(true);
@@ -308,6 +346,13 @@ export function OnlineGame({ id }: { id: string }) {
             </Link>
           )}
         </div>
+
+        {myColor && view.status !== "waiting" && (
+          <div className="border-t pt-3" style={border}>
+            <p className="mb-2 text-sm font-semibold">Chat</p>
+            <ChatBox scope="game" target={id} height="h-36" />
+          </div>
+        )}
 
         <div className="max-h-56 overflow-y-auto border-t pt-2 text-sm" style={border}>
           {pairs.length === 0 ? (

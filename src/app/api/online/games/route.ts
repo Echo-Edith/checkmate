@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrCreateProfile } from "@/lib/db/profiles";
+import { areFriends, publicIdToUserId } from "@/lib/db/friends";
 import { createGame, lobby, OnlineError } from "@/lib/db/online";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const createSchema = z.object({ color: z.enum(["w", "b", "random"]) }).strict();
+const createSchema = z.object({ color: z.enum(["w", "b", "random"]), friendId: z.string().length(24).optional() }).strict();
 
 function fail(error: unknown) {
   if (error instanceof OnlineError) return NextResponse.json({ error: error.message }, { status: error.status });
@@ -33,7 +34,12 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   try {
     const profile = await getOrCreateProfile(user.id, user.email);
-    return NextResponse.json({ id: await createGame(user.id, profile.username, parsed.data.color) });
+    let invite: string | null = null;
+    if (parsed.data.friendId) {
+      invite = await publicIdToUserId(parsed.data.friendId);
+      if (!invite || !(await areFriends(user.id, invite))) throw new OnlineError("You can only challenge your friends.", 403);
+    }
+    return NextResponse.json({ id: await createGame(user.id, profile.username, parsed.data.color, invite) });
   } catch (error) {
     return fail(error);
   }

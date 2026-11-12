@@ -25,6 +25,8 @@ interface OnlineGameDoc {
   result: Result | null;
   reason: string | null;
   drawOffer: Seat | null;
+  /** When set, only this user can join (a challenge to a friend). Such games are not listed publicly. */
+  invite?: string | null;
   version: number;
   createdAt: Date;
   updatedAt: Date;
@@ -115,7 +117,7 @@ function toView(doc: OnlineGameDoc, userId: string): OnlineGameView {
     reason: doc.reason,
     drawOffer: doc.drawOffer,
     version: doc.version,
-    canJoin: doc.status === "waiting" && myColor === null && Date.now() - doc.createdAt.getTime() < WAIT_MS,
+    canJoin: doc.status === "waiting" && myColor === null && (!doc.invite || doc.invite === userId) && Date.now() - doc.createdAt.getTime() < WAIT_MS,
   };
 }
 
@@ -129,7 +131,7 @@ async function assertRoom(userId: string): Promise<void> {
 }
 
 /** Creates a game where the creator waits for an opponent. */
-export async function createGame(userId: string, name: string, choice: Seat | "random"): Promise<string> {
+export async function createGame(userId: string, name: string, choice: Seat | "random", invite: string | null = null): Promise<string> {
   await assertRoom(userId);
   const col = await games();
   const color: Seat = choice === "random" ? (Math.random() < 0.5 ? "w" : "b") : choice;
@@ -144,6 +146,7 @@ export async function createGame(userId: string, name: string, choice: Seat | "r
     result: null,
     reason: null,
     drawOffer: null,
+    invite,
     version: 1,
     createdAt: now,
     updatedAt: now,
@@ -153,12 +156,13 @@ export async function createGame(userId: string, name: string, choice: Seat | "r
 }
 
 /** Takes the empty seat of a waiting game. The update is atomic, so two people can never take the same seat. */
-async function takeSeat(filter: Record<string, unknown>, userId: string, name: string): Promise<OnlineGameDoc | null> {
+async function takeSeat(filter: Record<string, unknown>, userId: string, name: string, allowInvite: boolean): Promise<OnlineGameDoc | null> {
   const col = await games();
   const now = new Date();
   return col.findOneAndUpdate(
     {
       ...filter,
+      ...(allowInvite ? { $or: [{ invite: null }, { invite: userId }] } : { invite: null }),
       status: "waiting",
       createdAt: { $gt: new Date(Date.now() - WAIT_MS) },
       white: { $ne: userId },
@@ -184,10 +188,10 @@ async function takeSeat(filter: Record<string, unknown>, userId: string, name: s
 /** Quick match: join someone who is waiting, or wait for the next person. */
 export async function quickMatch(userId: string, name: string): Promise<string> {
   const col = await games();
-  const mine = await col.findOne({ status: "waiting", $or: [{ white: userId }, { black: userId }], createdAt: { $gt: new Date(Date.now() - WAIT_MS) } });
+  const mine = await col.findOne({ status: "waiting", invite: null, $or: [{ white: userId }, { black: userId }], createdAt: { $gt: new Date(Date.now() - WAIT_MS) } });
   if (mine) return String(mine._id);
 
-  const joined = await takeSeat({}, userId, name);
+  const joined = await takeSeat({}, userId, name, false);
   if (joined) return String(joined._id);
   return createGame(userId, name, "random");
 }
@@ -196,7 +200,7 @@ export async function joinGame(id: string, userId: string, name: string): Promis
   const _id = objectId(id);
   if (!_id) throw new OnlineError("Game not found", 404);
   await assertRoom(userId);
-  const joined = await takeSeat({ _id }, userId, name);
+  const joined = await takeSeat({ _id }, userId, name, true);
   if (!joined) throw new OnlineError("That game is no longer open.", 409);
   return toView(joined, userId);
 }
@@ -208,11 +212,11 @@ export async function cancelGame(id: string, userId: string): Promise<void> {
   await col.deleteOne({ _id, status: "waiting", $or: [{ white: userId }, { black: userId }] });
 }
 
-export async function lobby(userId: string): Promise<{ open: LobbyEntry[]; mine: LobbyEntry[] }> {
+export async function lobby(userId: string): Promise<{ open: LobbyEntry[]; mine: LobbyEntry[]; challenges: LobbyEntry[] }> {
   const col = await games();
-  const [openDocs, mineDocs] = await Promise.all([
+  const [openDocs, mineDocs, challengeDocs] = await Promise.all([
     col
-      .find({ status: "waiting", createdAt: { $gt: new Date(Date.now() - WAIT_MS) }, white: { $ne: userId }, black: { $ne: userId } })
+      .find({ status: "waiting", invite: null, createdAt: { $gt: new Date(Date.now() - WAIT_MS) }, white: { $ne: userId }, black: { $ne: userId } })
       .sort({ createdAt: -1 })
       .limit(20)
       .toArray(),
@@ -220,6 +224,11 @@ export async function lobby(userId: string): Promise<{ open: LobbyEntry[]; mine:
       .find({ $or: [{ white: userId }, { black: userId }] })
       .sort({ updatedAt: -1 })
       .limit(8)
+      .toArray(),
+    col
+      .find({ status: "waiting", invite: userId, createdAt: { $gt: new Date(Date.now() - WAIT_MS) } })
+      .sort({ createdAt: -1 })
+      .limit(10)
       .toArray(),
   ]);
 
@@ -238,7 +247,7 @@ export async function lobby(userId: string): Promise<{ open: LobbyEntry[]; mine:
       updatedAt: doc.updatedAt.toISOString(),
     };
   };
-  return { open: openDocs.map(entry), mine: mineDocs.map(entry) };
+  return { open: openDocs.map(entry), mine: mineDocs.map(entry), challenges: challengeDocs.map(entry) };
 }
 
 /** Returns the game, or null when nothing changed since `since` (so polling stays tiny). */
@@ -369,4 +378,19 @@ export async function drawAction(id: string, userId: string, action: "offer" | "
   );
   if (!updated) throw new OnlineError("The board changed. Try again.", 409);
   return toView(updated, userId);
+}
+
+/** Number of friend challenges waiting for this user (for the notification dot). */
+export async function countChallenges(userId: string): Promise<number> {
+  const col = await games();
+  return col.countDocuments({ status: "waiting", invite: userId, createdAt: { $gt: new Date(Date.now() - WAIT_MS) } });
+}
+
+/** The two account IDs of a game, for the chat permission check. Never sent to browsers. */
+export async function getParticipants(id: string): Promise<{ white: string | null; black: string | null } | null> {
+  const _id = objectId(id);
+  if (!_id) return null;
+  const col = await games();
+  const doc = await col.findOne({ _id }, { projection: { white: 1, black: 1 } });
+  return doc ? { white: doc.white, black: doc.black } : null;
 }

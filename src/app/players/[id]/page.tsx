@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badges } from "@/components/Badges";
+import { FriendButton } from "@/components/friends/FriendButton";
 import { Avatar } from "@/components/Avatar";
 import { getPublicPlayer } from "@/lib/db/public";
 
@@ -65,6 +66,10 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </p>
         </div>
       </header>
+
+      <div className="mt-4">
+        <FriendButton playerId={player.id} />
+      </div>
 
       {player.bio && <p className="mt-4 whitespace-pre-wrap leading-relaxed">{player.bio}</p>}
 

@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { FriendsNavLink } from "@/components/friends/FriendsNavLink";
+import { SoundToggle } from "@/components/SoundToggle";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { getCurrentUser } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/badges";
@@ -32,8 +34,10 @@ export async function SiteNav() {
               {link.label}
             </Link>
           ))}
+          {user && <FriendsNavLink />}
         </div>
         <span className="ml-auto flex items-center gap-3 sm:gap-4">
+          <SoundToggle />
           <ThemeSwitcher loggedIn={Boolean(user)} />
           {user ? (
             <>

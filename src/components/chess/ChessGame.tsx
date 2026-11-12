@@ -17,6 +17,7 @@ import {
 import { winPercent } from "@/lib/engine/eval";
 import { getEngineFacts as fetchEngineFacts, type EngineFacts } from "@/lib/engine/facts";
 import { useStockfish } from "@/lib/engine/useStockfish";
+import { playSound, soundForSan } from "@/lib/sounds";
 import { useVoice } from "@/lib/useVoice";
 import { SpeakerIcon } from "@/components/SpeakButton";
 
@@ -217,6 +218,23 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   useEffect(() => {
     setHint(null);
   }, [fen, assistOn]);
+
+  // Sound for each new move (the player's and the bot's) and for the end of the game.
+  const plySound = useRef(moves.length);
+  useEffect(() => {
+    if (moves.length > plySound.current) {
+      const san = moves[moves.length - 1]?.san;
+      if (san) playSound(soundForSan(san));
+    }
+    plySound.current = moves.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moves.length]);
+  useEffect(() => {
+    if (!outcome || moves.length === 0) return;
+    const timer = window.setTimeout(() => playSound(outcome.tone === "win" ? "win" : outcome.tone === "loss" ? "lose" : "draw"), 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.over]);
 
   // Say the result out loud when the game ends.
   const sayRef = useRef(voice.say);

@@ -1,4 +1,4 @@
-import type { BoardThemeId, SiteThemeId } from "@/lib/themes";
+import type { BoardThemeId, PieceSetId, SiteThemeId } from "@/lib/themes";
 /**
  * Shape of documents stored in MongoDB.
  * Every user-owned document carries the verified Supabase user ID in `userId`.
@@ -7,6 +7,8 @@ import type { BoardThemeId, SiteThemeId } from "@/lib/themes";
 export interface UserPreferences {
   theme: SiteThemeId;
   boardTheme: BoardThemeId;
+  /** Piece design. Missing on older profiles (means "classic"). */
+  pieceSet?: PieceSetId;
   tutorPersonality: "teacher" | "coach" | "analyst";
 }
 

@@ -147,6 +147,7 @@ export default async function ProfilePage() {
               isPublic: profile.isPublic !== false,
               theme: profile.preferences.theme,
               boardTheme: profile.preferences.boardTheme,
+              pieceSet: profile.preferences.pieceSet ?? "classic",
               tutorPersonality: profile.preferences.tutorPersonality,
             }}
           />

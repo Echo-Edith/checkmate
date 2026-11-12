@@ -3,6 +3,7 @@ import type { Collection } from "mongodb";
 import { isOwnerEmail } from "@/lib/badges";
 import { MIN_RATING, START_RATING } from "@/lib/elo";
 import { getDb } from "@/lib/db/mongodb";
+import { PIECE_SET_IDS, type PieceSetId } from "@/lib/themes";
 import {
   DEFAULT_PREFERENCES,
   DEFAULT_STATS,
@@ -100,6 +101,14 @@ export async function incrementStats(userId: string, fields: Partial<UserStats>)
     if (typeof value === "number") $inc[`stats.${key}`] = value;
   }
   await profiles.updateOne({ userId }, { $inc, $set: { updatedAt: new Date() } });
+}
+
+/** The piece design a player chose (used so an opponent sees it too). */
+export async function getPieceSet(userId: string): Promise<PieceSetId> {
+  const profiles = await getProfiles();
+  const doc = await profiles.findOne({ userId }, { projection: { "preferences.pieceSet": 1 } });
+  const value = doc?.preferences?.pieceSet;
+  return (PIECE_SET_IDS as readonly string[]).includes(value ?? "") ? (value as PieceSetId) : "classic";
 }
 
 export interface ProfileUpdate {

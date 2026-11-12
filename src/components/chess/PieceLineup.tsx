@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PieceSymbol } from "chess.js";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
+import { usePieceSet } from "@/lib/usePieceSet";
 
 const PIECES: Array<{ type: PieceSymbol; name: string; points: string; moves: string }> = [
   { type: "k", name: "King", points: "Priceless", moves: "One square in any direction. Keep it safe!" },
@@ -15,6 +16,7 @@ const PIECES: Array<{ type: PieceSymbol; name: string; points: string; moves: st
 
 /** A row of all six pieces with their names. Tap one to see how it moves. */
 export function PieceLineup({ compact = false }: { compact?: boolean }) {
+  const ownSet = usePieceSet();
   const [selected, setSelected] = useState<PieceSymbol | null>(null);
   const info = PIECES.find((piece) => piece.type === selected);
 
@@ -35,9 +37,9 @@ export function PieceLineup({ compact = false }: { compact?: boolean }) {
               >
                 <span
                   className={`flex aspect-square w-full items-center justify-center rounded-md leading-none ${compact ? "text-2xl" : "text-3xl sm:text-4xl"}`}
-                  style={{ background: index % 2 === 0 ? "var(--sq-dark, #769656)" : "var(--sq-light, #eeeed2)", ...pieceStyle(index % 2 === 0 ? "w" : "b") }}
+                  style={{ background: index % 2 === 0 ? "var(--sq-dark, #769656)" : "var(--sq-light, #eeeed2)" }}
                 >
-                  {pieceGlyph(piece.type)}
+                  <span style={pieceStyle(index % 2 === 0 ? "w" : "b", ownSet)}>{pieceGlyph(piece.type)}</span>
                 </span>
                 <span className={`font-medium ${compact ? "text-[10px]" : "text-[11px] sm:text-xs"}`}>{piece.name}</span>
               </button>

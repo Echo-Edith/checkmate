@@ -39,5 +39,19 @@ export const BOARD_THEMES = [
 export const SITE_THEME_IDS = ["system", "light", "dark", "midnight", "forest", "ocean", "sunset", "rose", "royal", "paper", "oldschool", "retro", "cyber", "vaporwave", "arctic", "candy"] as const;
 export const BOARD_THEME_IDS = ["green", "classic", "blue", "purple", "ice", "coral", "slate", "walnut", "marble", "ink", "cyber", "terminal", "night", "sakura"] as const;
 
+export const PIECE_SETS = [
+  { id: "classic", label: "Classic" },
+  { id: "gold", label: "Gold and onyx" },
+  { id: "neon", label: "Neon" },
+  { id: "ruby", label: "Ruby and pearl" },
+  { id: "ice", label: "Ice" },
+  { id: "wood", label: "Wooden" },
+  { id: "outline", label: "Outline" },
+  { id: "retro", label: "Green glow" },
+  { id: "sunset", label: "Sunset" },
+] as const;
+export const PIECE_SET_IDS = ["classic", "gold", "neon", "ruby", "ice", "wood", "outline", "retro", "sunset"] as const;
+export type PieceSetId = (typeof PIECE_SET_IDS)[number];
+
 export type SiteThemeId = (typeof SITE_THEME_IDS)[number];
 export type BoardThemeId = (typeof BOARD_THEME_IDS)[number];

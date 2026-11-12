@@ -20,6 +20,7 @@ import { useStockfish } from "@/lib/engine/useStockfish";
 import { playSound, soundForSan } from "@/lib/sounds";
 import { useVoice } from "@/lib/useVoice";
 import { useT } from "@/lib/i18n/client";
+import { usePieceSet } from "@/lib/usePieceSet";
 import { SpeakerIcon } from "@/components/SpeakButton";
 
 const PROMOTION_PIECES: readonly PromotionPiece[] = ["q", "r", "b", "n"];
@@ -90,6 +91,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
 
   const { status: engineStatus, error: engineError, engine } = useStockfish(true);
   const t = useT();
+  const ownPieceSet = usePieceSet();
   const voice = useVoice();
 
   // Assist = best-move hints, the hint arrow and the tutor. It exists only against the bot, and the player can switch it off.
@@ -610,10 +612,10 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
                   type="button"
                   onClick={() => commitMove(pending.from, pending.to, piece)}
                   className="flex h-16 w-16 items-center justify-center rounded-md border text-5xl leading-none"
-                  style={{ ...borderStyle, background: "#769656", ...pieceStyle(game.turn()) }}
+                  style={{ ...borderStyle, background: "#769656" }}
                   aria-label={`Promote to ${piece}`}
                 >
-                  {pieceGlyph(piece)}
+                  <span style={pieceStyle(game.turn(), ownPieceSet)}>{pieceGlyph(piece)}</span>
                 </button>
               ))}
               <button type="button" onClick={() => setPending(null)} className="rounded-md border px-3 text-sm" style={borderStyle}>

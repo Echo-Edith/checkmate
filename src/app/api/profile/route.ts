@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { BOARD_THEME_IDS, SITE_THEME_IDS } from "@/lib/themes";
+import { BOARD_THEME_IDS, PIECE_SET_IDS, SITE_THEME_IDS } from "@/lib/themes";
 import { getOrCreateProfile, updateProfile } from "@/lib/db/profiles";
 
 const updateSchema = z
@@ -20,6 +20,7 @@ const updateSchema = z
       .object({
         theme: z.enum(SITE_THEME_IDS).optional(),
         boardTheme: z.enum(BOARD_THEME_IDS).optional(),
+        pieceSet: z.enum(PIECE_SET_IDS).optional(),
         tutorPersonality: z.enum(["teacher", "coach", "analyst"]).optional(),
       })
       .strict()

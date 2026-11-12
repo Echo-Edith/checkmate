@@ -2,8 +2,9 @@ import "server-only";
 import { Chess, type Square } from "chess.js";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "@/lib/db/mongodb";
+import type { PieceSetId } from "@/lib/themes";
 import { kFactor, ratingChange } from "@/lib/elo";
-import { applyRatingDelta, countOnlineGame, getRatingInfo, incrementStats } from "@/lib/db/profiles";
+import { applyRatingDelta, countOnlineGame, getPieceSet, getRatingInfo, incrementStats } from "@/lib/db/profiles";
 
 /**
  * Online games between two signed-in users. The server is the referee: it replays every move with
@@ -20,6 +21,9 @@ interface OnlineGameDoc {
   black: string | null;
   whiteName: string;
   blackName: string;
+  /** Piece designs the two players chose, so each sees the other's. */
+  whiteSet?: PieceSetId;
+  blackSet?: PieceSetId;
   status: "waiting" | "active" | "finished";
   /** SAN moves in order. */
   moves: string[];
@@ -44,6 +48,8 @@ export interface OnlineGameView {
   myColor: Seat | null;
   whiteName: string;
   blackName: string;
+  whiteSet: PieceSetId;
+  blackSet: PieceSetId;
   result: Result | null;
   reason: string | null;
   drawOffer: Seat | null;
@@ -118,6 +124,8 @@ function toView(doc: OnlineGameDoc, userId: string): OnlineGameView {
     myColor,
     whiteName: doc.whiteName,
     blackName: doc.blackName,
+    whiteSet: doc.whiteSet ?? "classic",
+    blackSet: doc.blackSet ?? "classic",
     result: doc.result,
     reason: doc.reason,
     drawOffer: doc.drawOffer,
@@ -142,11 +150,14 @@ export async function createGame(userId: string, name: string, choice: Seat | "r
   const col = await games();
   const color: Seat = choice === "random" ? (Math.random() < 0.5 ? "w" : "b") : choice;
   const now = new Date();
+  const mySet = await getPieceSet(userId);
   const doc: Omit<OnlineGameDoc, "_id"> = {
     white: color === "w" ? userId : null,
     black: color === "b" ? userId : null,
     whiteName: color === "w" ? name : "Waiting…",
     blackName: color === "b" ? name : "Waiting…",
+    whiteSet: color === "w" ? mySet : "classic",
+    blackSet: color === "b" ? mySet : "classic",
     status: "waiting",
     moves: [],
     result: null,
@@ -165,6 +176,7 @@ export async function createGame(userId: string, name: string, choice: Seat | "r
 async function takeSeat(filter: Record<string, unknown>, userId: string, name: string, allowInvite: boolean): Promise<OnlineGameDoc | null> {
   const col = await games();
   const now = new Date();
+  const mySet = await getPieceSet(userId);
   return col.findOneAndUpdate(
     {
       ...filter,
@@ -179,6 +191,8 @@ async function takeSeat(filter: Record<string, unknown>, userId: string, name: s
         $set: {
           whiteName: { $cond: [{ $eq: ["$white", null] }, name, "$whiteName"] },
           blackName: { $cond: [{ $eq: ["$black", null] }, name, "$blackName"] },
+          whiteSet: { $cond: [{ $eq: ["$white", null] }, mySet, { $ifNull: ["$whiteSet", "classic"] }] },
+          blackSet: { $cond: [{ $eq: ["$black", null] }, mySet, { $ifNull: ["$blackSet", "classic"] }] },
           white: { $ifNull: ["$white", userId] },
           black: { $ifNull: ["$black", userId] },
           status: "active",

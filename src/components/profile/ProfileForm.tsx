@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Avatar } from "@/components/Avatar";
 import { resizeToAvatar } from "@/lib/resize-image";
-import { BOARD_THEMES, SITE_THEMES, type BoardThemeId, type SiteThemeId } from "@/lib/themes";
-import { applyPreferences, savePreferences } from "@/lib/preferences";
+import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
+import { BOARD_THEMES, PIECE_SETS, SITE_THEMES, type BoardThemeId, type PieceSetId, type SiteThemeId } from "@/lib/themes";
+import { applyPreferences, loadPreferences, savePreferences } from "@/lib/preferences";
 
 interface ProfileFormProps {
   /** The signed-in user's public id and picture version. */
@@ -15,6 +16,7 @@ interface ProfileFormProps {
     isPublic: boolean;
     theme: SiteThemeId;
     boardTheme: BoardThemeId;
+    pieceSet: PieceSetId;
     tutorPersonality: "teacher" | "coach" | "analyst";
   };
 }
@@ -70,16 +72,17 @@ export function ProfileForm({ initial, avatar }: ProfileFormProps) {
   const [isPublic, setIsPublic] = useState(initial.isPublic);
   const [theme, setTheme] = useState(initial.theme);
   const [boardTheme, setBoardTheme] = useState(initial.boardTheme);
+  const [pieceSet, setPieceSet] = useState(initial.pieceSet);
   const [tutorPersonality, setTutorPersonality] = useState(initial.tutorPersonality);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   // Mirror the saved preferences into this browser so they apply on every page.
   useEffect(() => {
-    const prefs = { theme: initial.theme, boardTheme: initial.boardTheme, tutorPersonality: initial.tutorPersonality };
+    const prefs = { theme: initial.theme, boardTheme: initial.boardTheme, pieceSet: initial.pieceSet, tutorPersonality: initial.tutorPersonality };
     applyPreferences(prefs);
     savePreferences(prefs);
-  }, [initial.theme, initial.boardTheme, initial.tutorPersonality]);
+  }, [initial.theme, initial.boardTheme, initial.pieceSet, initial.tutorPersonality]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,7 +96,7 @@ export function ProfileForm({ initial, avatar }: ProfileFormProps) {
           username,
           bio,
           isPublic,
-          preferences: { theme, boardTheme, tutorPersonality },
+          preferences: { theme, boardTheme, pieceSet, tutorPersonality },
         }),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -104,7 +107,7 @@ export function ProfileForm({ initial, avatar }: ProfileFormProps) {
         const detail = data.details ? Object.values(data.details).flat()[0] : undefined;
         throw new Error(detail ?? data.error ?? "Could not save your profile.");
       }
-      const prefs = { theme, boardTheme, tutorPersonality };
+      const prefs = { theme, boardTheme, pieceSet, tutorPersonality };
       applyPreferences(prefs);
       savePreferences(prefs);
       setMessage({ kind: "ok", text: "Profile saved." });
@@ -215,6 +218,47 @@ export function ProfileForm({ initial, avatar }: ProfileFormProps) {
                 <span style={{ background: option.swatch[1] }} />
                 <span style={{ background: option.swatch[1] }} />
                 <span style={{ background: option.swatch[0] }} />
+              </span>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-sm font-medium">Piece design</legend>
+        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+          Your opponent sees your design on your pieces in online games.
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {PIECE_SETS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => {
+                setPieceSet(option.id);
+                savePreferences({ ...(loadPreferences() ?? {}), pieceSet: option.id });
+                void fetch("/api/profile", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ preferences: { pieceSet: option.id } }),
+                }).catch(() => undefined);
+              }}
+              aria-pressed={pieceSet === option.id}
+              className="rounded-lg border p-2 text-left text-xs"
+              style={{ borderColor: pieceSet === option.id ? "var(--accent)" : "var(--border)", borderWidth: pieceSet === option.id ? 2 : 1 }}
+            >
+              <span className="mb-1.5 grid h-12 grid-cols-2 overflow-hidden rounded" style={{ background: "var(--sq-dark, #769656)" }}>
+                <span className="flex items-center justify-center" style={{ background: "var(--sq-light, #eeeed2)" }}>
+                  <span className="text-2xl leading-none" style={pieceStyle("w", option.id)}>
+                    {pieceGlyph("n")}
+                  </span>
+                </span>
+                <span className="flex items-center justify-center">
+                  <span className="text-2xl leading-none" style={pieceStyle("b", option.id)}>
+                    {pieceGlyph("n")}
+                  </span>
+                </span>
               </span>
               {option.label}
             </button>

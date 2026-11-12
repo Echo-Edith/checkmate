@@ -1,10 +1,11 @@
 /** Client-side helpers that apply saved preferences (theme, board colours, tutor). Browser only. */
 
-import type { BoardThemeId, SiteThemeId } from "@/lib/themes";
+import type { BoardThemeId, PieceSetId, SiteThemeId } from "@/lib/themes";
 
 export interface StoredPreferences {
   theme?: SiteThemeId;
   boardTheme?: BoardThemeId;
+  pieceSet?: PieceSetId;
   tutorPersonality?: "teacher" | "coach" | "analyst";
 }
 
@@ -20,6 +21,7 @@ export function applyPreferences(prefs: StoredPreferences): void {
 export function savePreferences(prefs: StoredPreferences): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));
+    window.dispatchEvent(new Event("checkm8:prefs-changed"));
   } catch {
     // Storage can be blocked (private mode). Preferences still live in the profile.
   }

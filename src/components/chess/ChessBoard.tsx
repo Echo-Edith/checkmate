@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Chess, Color, Square } from "chess.js";
 import { pieceGlyph, pieceStyle } from "@/components/chess/pieces";
+import { usePieceSet } from "@/lib/usePieceSet";
+import type { PieceSetId } from "@/lib/themes";
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
@@ -35,6 +37,8 @@ interface ChessBoardProps {
   bestTarget?: Square | null;
   /** Tells the parent which piece is selected. */
   onSelectChange?: (square: Square | null) => void;
+  /** Piece design of each side. Without it, both sides use this player's own choice. */
+  pieceSets?: { w: PieceSetId; b: PieceSetId };
 }
 
 interface DragState {
@@ -42,7 +46,9 @@ interface DragState {
   size: number;
 }
 
-export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange }: ChessBoardProps) {
+export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange, pieceSets }: ChessBoardProps) {
+  const ownSet = usePieceSet();
+  const setFor = (color: "w" | "b"): PieceSetId => pieceSets?.[color] ?? ownSet;
   const boardRef = useRef<HTMLDivElement>(null);
   const wasSelectedRef = useRef(false);
   const prevCountRef = useRef(32);
@@ -358,9 +364,10 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
                       fontSize: "9.5cqw",
                       opacity: isDragSource ? 0.3 : 1,
                       transform: isSelected && !drag ? "translateY(-6%) scale(1.14)" : "none",
-                      transition: "transform 140ms ease-out, filter 140ms",
-                      filter: isSelected && !drag ? "drop-shadow(0 4px 3px rgba(0,0,0,0.45))" : "none",
-                      ...pieceStyle(piece.color),
+                      transition: "transform 140ms ease-out",
+                      ...pieceStyle(piece.color, setFor(piece.color)),
+                      filter:
+                        [pieceStyle(piece.color, setFor(piece.color)).filter, isSelected && !drag ? "drop-shadow(0 4px 3px rgba(0,0,0,0.45))" : ""].filter(Boolean).join(" ") || "none",
                     }}
                   >
                     {pieceGlyph(piece.type)}
@@ -407,7 +414,7 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
             width: drag.size,
             height: drag.size,
             fontSize: drag.size * 0.78,
-            ...pieceStyle(draggedPiece.color),
+            ...pieceStyle(draggedPiece.color, setFor(draggedPiece.color)),
           }}
         >
           {pieceGlyph(draggedPiece.type)}

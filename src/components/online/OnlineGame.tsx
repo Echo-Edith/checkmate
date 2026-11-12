@@ -245,7 +245,7 @@ export function OnlineGame({ id }: { id: string }) {
     <div className="mt-4 grid gap-4 lg:grid-cols-[auto_20rem] lg:justify-center">
       <div className="board-col mx-auto space-y-2">
         {strip(top)}
-        <ChessBoard game={chess} orientation={orientation} interactive={interactive} lastMove={lastMove} onMove={handleMove} />
+        <ChessBoard game={chess} orientation={orientation} interactive={interactive} lastMove={lastMove} onMove={handleMove} pieceSets={{ w: view.whiteSet, b: view.blackSet }} />
         {strip(bottom)}
       </div>
 
@@ -388,14 +388,14 @@ export function OnlineGame({ id }: { id: string }) {
                   key={piece}
                   type="button"
                   className="grid h-14 w-14 place-items-center rounded-md border text-4xl"
-                  style={{ ...border, background: "var(--sq-dark, #769656)", ...pieceStyle(myColor) }}
+                  style={{ ...border, background: "var(--sq-dark, #769656)" }}
                   onClick={() => {
                     const target = promotion;
                     setPromotion(null);
                     void submitMove(target.from, target.to, piece);
                   }}
                 >
-                  {pieceGlyph(piece)}
+                  <span style={pieceStyle(myColor, myColor === "w" ? view.whiteSet : view.blackSet)}>{pieceGlyph(piece)}</span>
                 </button>
               ))}
             </div>

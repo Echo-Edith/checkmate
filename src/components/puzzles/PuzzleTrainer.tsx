@@ -27,9 +27,15 @@ const borderStyle = { borderColor: "var(--border)" } as const;
 interface PuzzleTrainerProps {
   loggedIn: boolean;
   initialStats: PuzzleStats;
+  /** Puzzles started today. */
+  initialToday: string[];
+  dailyLimit: number;
 }
 
-export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
+export function PuzzleTrainer({ loggedIn, initialStats, initialToday, dailyLimit }: PuzzleTrainerProps) {
+  const [extra, setExtra] = useState<Puzzle[]>([]);
+  const [today, setToday] = useState<string[]>(initialToday);
+  const [loadingNext, setLoadingNext] = useState(false);
   const [filter, setFilter] = useState<Difficulty | "all">("all");
   const [current, setCurrent] = useState<Puzzle>(() => PUZZLES.find((p) => !initialStats.solved.includes(p.id)) ?? PUZZLES[0]!);
   const [stats, setStats] = useState<PuzzleStats>(initialStats);
@@ -40,7 +46,9 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
   const [message, setMessage] = useState<string | null>(null);
   const hintsUsed = useRef(0);
 
-  const visible = useMemo(() => PUZZLES.filter((p) => filter === "all" || p.difficulty === filter), [filter]);
+  const all = useMemo(() => [...PUZZLES, ...extra], [extra]);
+  const visible = useMemo(() => all.filter((p) => filter === "all" || p.difficulty === filter), [all, filter]);
+  const locked = loggedIn && today.length >= dailyLimit && !today.includes(current.id);
   const accuracy = stats.attempts > 0 ? Math.round((stats.correct / stats.attempts) * 100) : null;
 
   const report = useCallback(
@@ -63,9 +71,10 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ puzzleId: puzzle.id, outcome, moves, hintsUsed: hintsUsed.current }),
         });
-        const data = (await response.json().catch(() => ({}))) as { puzzles?: PuzzleStats; error?: string };
+        const data = (await response.json().catch(() => ({}))) as { puzzles?: PuzzleStats; today?: string[]; error?: string };
         if (!response.ok || !data.puzzles) throw new Error(data.error ?? "Could not save.");
         setStats(data.puzzles);
+        if (data.today) setToday(data.today);
         setMessage(null);
         window.dispatchEvent(new Event("checkm8:check-achievements"));
       } catch (err) {
@@ -84,11 +93,30 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
     hintsUsed.current = 0;
   }
 
-  function nextPuzzle() {
-    const pool = visible.length > 0 ? visible : PUZZLES;
+  async function nextPuzzle() {
+    if (loadingNext) return;
+    const pool = visible.length > 0 ? visible : all;
     const unsolved = pool.filter((p) => !stats.solved.includes(p.id) && p.id !== current.id);
-    const index = pool.findIndex((p) => p.id === current.id);
-    select(unsolved[0] ?? pool[(index + 1) % pool.length] ?? current);
+    if (unsolved[0]) {
+      select(unsolved[0]);
+      return;
+    }
+    // Every puzzle is solved: make a new one. They never run out.
+    setLoadingNext(true);
+    setMessage(null);
+    try {
+      const seed = 1 + Math.floor(Math.random() * 9_000_000);
+      const response = await fetch(`/api/puzzles/generate?seed=${seed}`);
+      const data = (await response.json().catch(() => ({}))) as { puzzle?: Puzzle; error?: string };
+      if (!response.ok || !data.puzzle) throw new Error(data.error ?? "Could not make a puzzle.");
+      const made = data.puzzle;
+      setExtra((list) => [...list, made]);
+      select(made);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not make a puzzle.");
+    } finally {
+      setLoadingNext(false);
+    }
   }
 
   async function showHint() {
@@ -114,12 +142,13 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
 
   return (
     <div className="space-y-6">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
           ["Streak", String(stats.streak)],
           ["Best streak", String(stats.bestStreak)],
           ["Accuracy", accuracy === null ? "—" : `${accuracy}%`],
-          ["Solved", `${stats.solved.length}/${PUZZLES.length}`],
+          ["Solved", String(stats.solved.length)],
+          ["Today", loggedIn ? `${Math.min(today.length, dailyLimit)}/${dailyLimit}` : "—"],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border p-3" style={{ ...borderStyle, background: "var(--surface)" }}>
             <dt className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
@@ -140,6 +169,17 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
       )}
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {locked ? (
+          <div className="card w-full max-w-[600px] p-6 text-center lg:flex-1">
+            <h2 className="text-xl font-semibold">That is all for today</h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+              You did {dailyLimit} puzzles today. Come back tomorrow for more. The day changes at 00:00 UTC.
+            </p>
+            <Link href="/lessons" className="btn-primary mt-4 inline-flex rounded-xl px-5 py-3 text-sm font-semibold">
+              Go to lessons →
+            </Link>
+          </div>
+        ) : (
         <TacticBoard
           key={`${current.id}-${boardKey}`}
           fen={current.fen}
@@ -148,6 +188,7 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
           onSolved={(moves) => void report(current, "solved", moves)}
           onFailed={(moves) => void report(current, "failed", moves)}
         />
+        )}
 
         <aside className="w-full max-w-[600px] space-y-4 lg:w-80">
           <div className="rounded-lg border p-4" style={{ ...borderStyle, background: "var(--surface)" }}>
@@ -188,10 +229,10 @@ export function PuzzleTrainer({ loggedIn, initialStats }: PuzzleTrainerProps) {
               </button>
               <button
                 type="button"
-                onClick={nextPuzzle}
+                onClick={() => void nextPuzzle()}
                 className="btn-primary rounded-md px-4 py-1.5 text-sm font-semibold"
               >
-                Next puzzle →
+                {loadingNext ? "Making a puzzle…" : "Next puzzle →"}
               </button>
             </div>
             {message && (

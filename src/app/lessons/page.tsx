@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { LESSONS } from "@/lib/content/lessons";
 import type { Difficulty } from "@/lib/content/puzzles";
 import { PieceLineup } from "@/components/chess/PieceLineup";
-import { getProgress } from "@/lib/db/progress";
+import { DAILY_LESSONS } from "@/lib/content/generate";
+import { getDaily, getProgress } from "@/lib/db/progress";
 
 export const metadata: Metadata = { title: "Lessons — Checkm8" };
 export const dynamic = "force-dynamic";
@@ -18,15 +19,21 @@ const LEVELS: Array<{ key: Difficulty; title: string }> = [
 export default async function LessonsPage() {
   const user = await getCurrentUser();
   let completed: string[] = [];
+  let todayCount = 0;
   if (user) {
     try {
       completed = (await getProgress(user.id)).lessons;
+      todayCount = (await getDaily(user.id)).lessons.length;
     } catch {
       // Progress is optional here; the list still works without it.
     }
   }
 
   const upNext = LESSONS.find((lesson) => !completed.includes(lesson.id)) ?? LESSONS[0];
+  // Endless lessons: the first one that is not done yet.
+  let nextGenerated = 0;
+  while (completed.includes(`g-${nextGenerated}`)) nextGenerated += 1;
+  const limitReached = user !== null && todayCount >= DAILY_LESSONS;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -36,6 +43,12 @@ export default async function LessonsPage() {
           ? `${completed.length} of ${LESSONS.length} lessons completed.`
           : "Log in to save your progress."}
       </p>
+      {user && (
+        <p className="mt-1 text-sm font-medium" style={{ color: limitReached ? "var(--accent)" : "var(--muted)" }}>
+          Today: {Math.min(todayCount, DAILY_LESSONS)} of {DAILY_LESSONS} lessons
+          {limitReached ? ". That is all for today. Come back tomorrow!" : "."}
+        </p>
+      )}
       {upNext && (
         <Link href={`/lessons/${upNext.id}`} className="btn-primary mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold">
           {completed.length > 0 ? "Continue" : "Start"}: {upNext.title} →
@@ -78,6 +91,16 @@ export default async function LessonsPage() {
           </ul>
         </section>
       ))}
-    </main>
+    
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">More lessons</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          New lessons are written for you, one after another. They never run out.
+        </p>
+        <Link href={`/lessons/g-${nextGenerated}`} className="btn-primary mt-3 inline-flex rounded-xl px-5 py-3 text-sm font-semibold">
+          Next new lesson →
+        </Link>
+      </section>
+</main>
   );
 }

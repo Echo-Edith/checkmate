@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { getPuzzle } from "@/lib/content/puzzles";
+import { findPuzzle } from "@/lib/content/generate";
 import { evaluateAttempt } from "@/lib/content/verify";
 import { getOrCreateProfile } from "@/lib/db/profiles";
-import { recordPuzzleAttempt } from "@/lib/db/progress";
+import { DailyLimitError, getDaily, recordPuzzleAttempt } from "@/lib/db/progress";
 
 const bodySchema = z
   .object({
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
-  const puzzle = getPuzzle(parsed.data.puzzleId);
+  const puzzle = findPuzzle(parsed.data.puzzleId);
   if (!puzzle) return NextResponse.json({ error: "Unknown puzzle" }, { status: 404 });
 
   const solved = parsed.data.outcome === "solved";
@@ -43,8 +43,10 @@ export async function POST(request: NextRequest) {
   try {
     await getOrCreateProfile(user.id, user.email);
     const puzzles = await recordPuzzleAttempt(user.id, puzzle.id, solved, parsed.data.hintsUsed);
-    return NextResponse.json({ puzzles });
+    const daily = await getDaily(user.id);
+    return NextResponse.json({ puzzles, today: daily.puzzles });
   } catch (error) {
+    if (error instanceof DailyLimitError) return NextResponse.json({ error: error.message }, { status: 429 });
     console.error("POST /api/progress/puzzle failed:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Could not save progress" }, { status: 500 });
   }

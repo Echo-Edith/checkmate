@@ -2,6 +2,7 @@ import "server-only";
 import type { Collection } from "mongodb";
 import { getDb } from "@/lib/db/mongodb";
 import { setStats } from "@/lib/db/profiles";
+import { DAILY_LESSONS, DAILY_PUZZLES } from "@/lib/content/generate";
 
 /** One compact document per user holding lesson and puzzle progress (IDs only). */
 export interface PuzzleProgress {
@@ -17,7 +18,35 @@ export interface ProgressDoc {
   userId: string;
   lessons: string[];
   puzzles: PuzzleProgress;
+  /** What was started today (UTC date). Resets when the date changes. */
+  daily?: DailyProgress;
   updatedAt: Date;
+}
+
+export interface DailyProgress {
+  date: string;
+  puzzles: string[];
+  lessons: string[];
+}
+
+export class DailyLimitError extends Error {
+  constructor(readonly kind: "puzzles" | "lessons") {
+    super(kind === "puzzles" ? `You did all ${DAILY_PUZZLES} puzzles for today. Come back tomorrow.` : `You did all ${DAILY_LESSONS} lessons for today. Come back tomorrow.`);
+  }
+}
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dailyOf(doc: Pick<ProgressDoc, "daily"> | null | undefined): DailyProgress {
+  const date = todayKey();
+  return doc?.daily?.date === date ? doc.daily : { date, puzzles: [], lessons: [] };
+}
+
+/** What the user already did today. */
+export async function getDaily(userId: string): Promise<DailyProgress> {
+  return dailyOf(await getProgress(userId));
 }
 
 export const EMPTY_PUZZLE_PROGRESS: PuzzleProgress = {
@@ -61,11 +90,17 @@ export async function getProgress(userId: string): Promise<ProgressDoc> {
 /** Marks a lesson complete (idempotent) and mirrors the count into the profile stats. */
 export async function completeLesson(userId: string, lessonId: string): Promise<string[]> {
   const collection = await getProgressCollection();
+  const before = await getProgress(userId);
+  const daily = dailyOf(before);
+  if (!before.lessons.includes(lessonId)) {
+    if (daily.lessons.length >= DAILY_LESSONS) throw new DailyLimitError("lessons");
+    daily.lessons = [...daily.lessons, lessonId];
+  }
   await collection.updateOne(
     { userId },
     {
       $addToSet: { lessons: lessonId },
-      $set: { updatedAt: new Date() },
+      $set: { updatedAt: new Date(), daily },
       $setOnInsert: { puzzles: { ...EMPTY_PUZZLE_PROGRESS } },
     },
     { upsert: true },
@@ -84,7 +119,13 @@ export async function recordPuzzleAttempt(
   hintsUsed: number,
 ): Promise<PuzzleProgress> {
   const collection = await getProgressCollection();
-  const current = (await getProgress(userId)).puzzles;
+  const before = await getProgress(userId);
+  const current = before.puzzles;
+  const daily = dailyOf(before);
+  if (!daily.puzzles.includes(puzzleId)) {
+    if (daily.puzzles.length >= DAILY_PUZZLES) throw new DailyLimitError("puzzles");
+    daily.puzzles = [...daily.puzzles, puzzleId];
+  }
 
   const streak = solved ? current.streak + 1 : 0;
   const next: PuzzleProgress = {
@@ -98,7 +139,7 @@ export async function recordPuzzleAttempt(
 
   await collection.updateOne(
     { userId },
-    { $set: { puzzles: next, updatedAt: new Date() }, $setOnInsert: { lessons: [] } },
+    { $set: { puzzles: next, daily, updatedAt: new Date() }, $setOnInsert: { lessons: [] } },
     { upsert: true },
   );
   await setStats(userId, { puzzlesAttempted: next.attempts, puzzlesSolved: next.solved.length });

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { LANGS } from "@/lib/i18n/messages";
 import { getLang } from "@/lib/i18n/server";
-import { getPuzzle } from "@/lib/content/puzzles";
+import { findPuzzle } from "@/lib/content/generate";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { GeminiError, streamGemini } from "@/lib/tutor/gemini";
 import { buildSystemPrompt, buildUserPrompt, isValidFen } from "@/lib/tutor/prompts";
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const lang = await getLang();
     let prompt;
     if (data.kind === "puzzle_hint") {
-      const puzzle = getPuzzle(data.puzzleId);
+      const puzzle = findPuzzle(data.puzzleId);
       if (!puzzle) return NextResponse.json({ error: "Unknown puzzle" }, { status: 404 });
       prompt = buildUserPrompt({ request: data, puzzle });
     } else {

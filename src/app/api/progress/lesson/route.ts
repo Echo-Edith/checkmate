@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getLesson } from "@/lib/content/lessons";
+import { generatedLessonNumber, generatedPractice } from "@/lib/content/lesson-source";
 import { evaluateAttempt } from "@/lib/content/verify";
 import { getOrCreateProfile } from "@/lib/db/profiles";
-import { completeLesson } from "@/lib/db/progress";
+import { completeLesson, DailyLimitError } from "@/lib/db/progress";
 
 const bodySchema = z
   .object({
@@ -27,7 +28,15 @@ export async function POST(request: NextRequest) {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
-  const lesson = getLesson(parsed.data.lessonId);
+  const generatedNumber = generatedLessonNumber(parsed.data.lessonId);
+  let lesson: { id: string; practice?: ReturnType<typeof generatedPractice> } | undefined = getLesson(parsed.data.lessonId);
+  if (!lesson && generatedNumber !== null) {
+    try {
+      lesson = { id: parsed.data.lessonId, practice: generatedPractice(generatedNumber) };
+    } catch {
+      return NextResponse.json({ error: "Could not load the lesson." }, { status: 500 });
+    }
+  }
   if (!lesson) return NextResponse.json({ error: "Unknown lesson" }, { status: 404 });
 
   // The practice position must really be solved. The server re-checks the moves.
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
     const lessons = await completeLesson(user.id, lesson.id);
     return NextResponse.json({ lessons });
   } catch (error) {
+    if (error instanceof DailyLimitError) return NextResponse.json({ error: error.message }, { status: 429 });
     console.error("POST /api/progress/lesson failed:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Could not save progress" }, { status: 500 });
   }

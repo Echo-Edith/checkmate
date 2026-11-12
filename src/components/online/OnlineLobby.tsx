@@ -133,7 +133,7 @@ export function OnlineLobby() {
               <li key={entry.id}>
                 <Link href={`/online/${entry.id}`} className="card card-hover flex items-center justify-between gap-3 px-4 py-3">
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{entry.creatorName}</span>
+                    <span translate="no" className="block truncate font-medium">{entry.creatorName}</span>
                     <span className="block text-xs" style={{ color: "var(--muted)" }}>
                       Plays {colorName(entry.creatorColor)}
                     </span>

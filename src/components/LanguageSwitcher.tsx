@@ -1,18 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useLang, useT } from "@/lib/i18n/client";
 import { LANGS, LANG_COOKIE, type Lang } from "@/lib/i18n/messages";
 
 export function LanguageSwitcher() {
   const lang = useLang();
   const t = useT();
-  const router = useRouter();
 
   function change(next: Lang) {
     document.cookie = `${LANG_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-    document.documentElement.lang = next;
-    router.refresh();
+    window.location.reload();
   }
 
   return (

@@ -137,7 +137,7 @@ export function FriendsPanel() {
             {found.map((player) => (
               <li key={player.id} className="card flex items-center gap-3 px-3 py-2">
                 <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={36} />
-                <Link href={`/players/${player.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
+                <Link translate="no" href={`/players/${player.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
                   {player.username}
                 </Link>
                 <Badges badges={player.badges} compact />
@@ -170,7 +170,7 @@ export function FriendsPanel() {
             {overview.incoming.map((person) => (
               <li key={person.id} className="card flex items-center gap-3 px-3 py-2">
                 <Avatar id={person.id} version={person.avatarVersion} name={person.username} size={36} />
-                <span className="min-w-0 flex-1 truncate font-medium">{person.username}</span>
+                <span translate="no" className="min-w-0 flex-1 truncate font-medium">{person.username}</span>
                 <button type="button" disabled={busyId === person.id} onClick={() => void act("accept", person.id, "Friend added!")} className="btn-primary rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50">
                   Accept
                 </button>
@@ -201,7 +201,7 @@ export function FriendsPanel() {
               <li key={friend.id} className="card px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-3">
                   <Avatar id={friend.id} version={friend.avatarVersion} name={friend.username} size={40} />
-                  <Link href={`/players/${friend.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
+                  <Link translate="no" href={`/players/${friend.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
                     {friend.username}
                   </Link>
                   <Badges badges={friend.badges} compact />
@@ -245,7 +245,7 @@ export function FriendsPanel() {
           <ul className="space-y-2">
             {overview.outgoing.map((person) => (
               <li key={person.id} className="flex items-center gap-3 text-sm">
-                <span className="min-w-0 flex-1 truncate">{person.username}</span>
+                <span translate="no" className="min-w-0 flex-1 truncate">{person.username}</span>
                 <button type="button" disabled={busyId === person.id} onClick={() => void act("decline", person.id, "Request cancelled.")} className={smallButton} style={border}>
                   Cancel
                 </button>

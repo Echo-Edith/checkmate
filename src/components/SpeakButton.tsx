@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/i18n/client";
 import { speak, speechSupported, stopSpeaking } from "@/lib/speech";
+import { translateForSpeech } from "@/lib/translate-client";
 
 /** "Listen" button: reads the given text aloud, tap again to stop. Hidden if the browser cannot speak. */
 export function SpeakButton({ text, label = "Listen", className = "" }: { text: string; label?: string; className?: string }) {
   const [supported, setSupported] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const lang = useLang();
 
   useEffect(() => {
     setSupported(speechSupported());
@@ -24,7 +27,7 @@ export function SpeakButton({ text, label = "Listen", className = "" }: { text: 
           setPlaying(false);
         } else {
           setPlaying(true);
-          speak(text, () => setPlaying(false));
+          void translateForSpeech(lang, text).then((spoken) => speak(spoken, () => setPlaying(false)));
         }
       }}
       aria-pressed={playing}

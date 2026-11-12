@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/badges";
+import { Translator } from "@/components/Translator";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getLang } from "@/lib/i18n/server";
 import { isMaintenanceOn, isTester } from "@/lib/db/settings";
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </head>
         <body className="min-h-screen antialiased">
           <PreferenceBoot />
+          <Translator lang={lang} />
           <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 text-center">
             <h1 className="text-3xl font-bold tracking-tight">Back soon</h1>
             <p className="mt-3" style={{ color: "var(--muted)" }}>
@@ -73,6 +75,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen antialiased">
         <I18nProvider lang={lang}>
           <PreferenceBoot />
+          <Translator lang={lang} />
           <SiteNav />
           {children}
         </I18nProvider>

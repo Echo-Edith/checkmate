@@ -90,7 +90,7 @@ export function AdminUsers() {
             <Avatar id={user.id} version={user.avatarVersion} name={user.username} size={40} />
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="truncate font-medium">{user.username}</span>
+                <span translate="no" className="truncate font-medium">{user.username}</span>
                 <Badges badges={badgesFor({ isOwner: user.isOwner, isBeta: user.isBeta })} compact />
               </span>
               <span className="block text-xs" style={{ color: "var(--muted)" }}>

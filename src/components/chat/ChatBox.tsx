@@ -105,11 +105,12 @@ export function ChatBox({ scope, target, height = "h-56" }: { scope: "game" | "d
           messages.map((message) => (
             <div key={message.id} className={`flex ${message.mine ? "justify-end" : "justify-start"}`}>
               <p
+                translate="no"
                 className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 leading-snug"
                 style={message.mine ? { background: "var(--accent)", color: "var(--accent-fg)" } : { background: "var(--surface)", border: "1px solid var(--border)" }}
               >
                 {!message.mine && (
-                  <span className="mb-0.5 block text-[10px] font-semibold opacity-70">{message.name}</span>
+                  <span translate="no" className="mb-0.5 block text-[10px] font-semibold opacity-70">{message.name}</span>
                 )}
                 {message.text}
               </p>

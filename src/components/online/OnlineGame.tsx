@@ -213,7 +213,7 @@ export function OnlineGame({ id }: { id: string }) {
         style={{ background: view.status === "active" && turn === seat ? "var(--accent)" : "var(--border)" }}
         aria-label={view.status === "active" && turn === seat ? "To move" : undefined}
       />
-      <span className="truncate font-medium">{names[seat]}</span>
+      <span translate="no" className="truncate font-medium">{names[seat]}</span>
       <span className="text-xs" style={{ color: "var(--muted)" }}>
         {seat === "w" ? "White" : "Black"}
         {myColor === seat && " · you"}

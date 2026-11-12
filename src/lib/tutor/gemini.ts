@@ -55,7 +55,7 @@ async function request(apiKey: string, model: string, body: Record<string, unkno
  * Calls Gemini from the server and returns the answer as a stream of plain text,
  * so the browser can show it while it is being written. The API key never reaches the browser.
  */
-export async function streamGemini(system: string, user: string): Promise<ReadableStream<Uint8Array>> {
+export async function streamGemini(system: string, user: string, options: { maxOutputTokens?: number; json?: boolean } = {}): Promise<ReadableStream<Uint8Array>> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new GeminiError("The AI tutor is not configured. Missing environment variable GEMINI_API_KEY.", 503);
@@ -66,10 +66,11 @@ export async function streamGemini(system: string, user: string): Promise<Readab
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
   };
-  const fast = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } } };
+  const jsonMode = options.json ? { responseMimeType: "application/json" } : {};
+  const fast = { ...base, generationConfig: { temperature: options.json ? 0.2 : 0.5, maxOutputTokens: options.maxOutputTokens ?? 300, thinkingConfig: { thinkingBudget: 0 }, ...jsonMode } };
 
   // Turning thinking off makes answers much faster. If the model rejects that setting, retry without it.
-  const plain = { ...base, generationConfig: { temperature: 0.5, maxOutputTokens: 450 } };
+  const plain = { ...base, generationConfig: { temperature: options.json ? 0.2 : 0.5, maxOutputTokens: options.maxOutputTokens ?? 450, ...jsonMode } };
 
   let response: Response | undefined;
   let timedOut: GeminiError | undefined;

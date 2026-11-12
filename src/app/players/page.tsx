@@ -59,7 +59,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
                 <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="truncate font-medium">{player.username}</span>
+                    <span translate="no" className="truncate font-medium">{player.username}</span>
                     <Badges badges={player.badges} compact />
                   </span>
                   <span className="block text-xs" style={{ color: "var(--muted)" }}>

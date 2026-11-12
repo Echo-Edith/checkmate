@@ -54,14 +54,14 @@ export default async function ProfilePage() {
     return (
       <main className="mx-auto max-w-3xl space-y-10 px-4 py-8 sm:px-6">
         <header>
-          <h1 className="text-2xl font-semibold tracking-tight">{profile.username}</h1>
+          <h1 translate="no" className="text-2xl font-semibold tracking-tight">{profile.username}</h1>
           <div className="mt-1">
             <Badges badges={badgesFor({ isOwner: profile.isOwner, isBeta: profile.isBeta })} />
           </div>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
             {user.email}
           </p>
-          {profile.bio && <p className="mt-3 text-sm">{profile.bio}</p>}
+          {profile.bio && <p translate="no" className="mt-3 text-sm">{profile.bio}</p>}
         </header>
 
         <section aria-labelledby="stats-heading">

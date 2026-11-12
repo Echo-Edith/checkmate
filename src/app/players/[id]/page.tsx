@@ -50,7 +50,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
       <header className="card mt-4 flex items-center gap-4 p-5">
         <Avatar id={player.id} version={player.avatarVersion} name={player.username} size={72} />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{player.username}</h1>
+          <h1 translate="no" className="truncate text-2xl font-semibold tracking-tight">{player.username}</h1>
           {player.badges.length > 0 && (
             <div className="mt-1">
               <Badges badges={player.badges} />
@@ -74,7 +74,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
         <FriendButton playerId={player.id} />
       </div>
 
-      {player.bio && <p className="mt-4 whitespace-pre-wrap leading-relaxed">{player.bio}</p>}
+      {player.bio && <p translate="no" className="mt-4 whitespace-pre-wrap leading-relaxed">{player.bio}</p>}
 
       <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {items.map(([label, value]) => (

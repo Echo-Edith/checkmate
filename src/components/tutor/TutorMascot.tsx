@@ -368,6 +368,7 @@ export function TutorMascot({ fen, lastMoveSan, loggedIn, getEngineFacts }: Tuto
             {messages.map((message) => (
               <div key={message.id} className={`flex items-end gap-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <p
+                  translate="no"
                   className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 leading-relaxed"
                   style={
                     message.role === "user"

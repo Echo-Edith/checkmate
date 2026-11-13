@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Chess, Square } from "chess.js";
-import { ChessBoard } from "@/components/chess/ChessBoard";
+import { ChessBoard, type BoardMove } from "@/components/chess/ChessBoard";
 import { playSound, soundForSan } from "@/lib/sounds";
 
 export interface ReplayStep {
@@ -26,6 +26,10 @@ interface ReplayPanelProps {
   onSelect: (index: number) => void;
   /** While true, playback waits on the current move (for example while a comment is read). */
   hold?: boolean;
+  /** The move on screen is a mistake: paint it red. */
+  badMove?: boolean;
+  /** Shows another position (the one before the mistake) with an arrow for the better move. */
+  overlay?: { game: Chess; hint: BoardMove; caption: string } | null;
   onPlayingChange?: (playing: boolean) => void;
 }
 
@@ -49,7 +53,7 @@ function IconButton({ label, onClick, disabled, children, primary = false }: { l
  * Video-style replay of a game. Positions come from chess.js, so every frame is a legal position.
  * Play / pause, previous, next, restart, a draggable timeline and four speeds. It pauses itself at the end.
  */
-export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onPlayingChange }: ReplayPanelProps) {
+export function ReplayPanel({ game, steps, selected, onSelect, hold = false, badMove = false, overlay = null, onPlayingChange }: ReplayPanelProps) {
   const total = steps.length;
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
@@ -106,7 +110,21 @@ export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onP
 
   return (
     <div className="space-y-3">
-      <ChessBoard game={game} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} animate={animate} />
+      <ChessBoard
+        game={overlay ? overlay.game : game}
+        orientation="w"
+        interactive={false}
+        lastMove={overlay ? null : lastMove}
+        lastMoveTone={badMove ? "bad" : "normal"}
+        hint={overlay ? overlay.hint : null}
+        onMove={noop}
+        animate={animate && !overlay}
+      />
+      {overlay && (
+        <p role="status" className="rounded-lg px-3 py-2 text-center text-sm font-semibold" style={{ background: "color-mix(in srgb, #22c55e 22%, transparent)" }}>
+          <span translate="no">{overlay.caption}</span>
+        </p>
+      )}
 
       <div className="space-y-3 rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }} role="group" aria-label="Replay controls">
         <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">

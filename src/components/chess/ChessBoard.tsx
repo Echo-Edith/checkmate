@@ -39,6 +39,8 @@ interface ChessBoardProps {
   onSelectChange?: (square: Square | null) => void;
   /** Piece design of each side. Without it, both sides use this player's own choice. */
   pieceSets?: { w: PieceSetId; b: PieceSetId };
+  /** "bad" paints the last move red (used to point out a mistake). */
+  lastMoveTone?: "normal" | "bad";
 }
 
 interface DragState {
@@ -46,7 +48,7 @@ interface DragState {
   size: number;
 }
 
-export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange, pieceSets }: ChessBoardProps) {
+export function ChessBoard({ game, orientation, interactive, lastMove, onMove, animate = true, hint = null, showTargets = false, bestTarget = null, onSelectChange, pieceSets, lastMoveTone = "normal" }: ChessBoardProps) {
   const ownSet = usePieceSet();
   const setFor = (color: "w" | "b"): PieceSetId => pieceSets?.[color] ?? ownSet;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -316,7 +318,7 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
                   cursor: interactive ? "pointer" : "default",
                 }}
               >
-                {isLast && <div className="absolute inset-0" style={{ background: "rgba(255, 221, 0, 0.35)" }} />}
+                {isLast && <div className="absolute inset-0" style={{ background: lastMoveTone === "bad" ? "rgba(239, 68, 68, 0.5)" : "rgba(255, 221, 0, 0.35)" }} />}
                 {isSelected && <div className="absolute inset-0" style={{ background: "rgba(20, 120, 255, 0.4)" }} />}
                 {isHint && (
                   <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 0 0.7cqw rgba(34, 197, 94, 0.95)" }} />

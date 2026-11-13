@@ -62,6 +62,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   const [autoCommentary, setAutoCommentary] = useState(true);
   const [voiceCommentary, setVoiceCommentary] = useState(false);
   const [canSpeak, setCanSpeak] = useState(false);
+  const [showBetter, setShowBetter] = useState(false);
   const commentCache = useRef(new Map<number, { text: string; checked: boolean }>());
   const commentedRef = useRef(new Set<number>());
   const timers = useRef(new Set<number>());
@@ -98,6 +99,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   }, []);
   useEffect(() => {
     selectedRef.current = selected;
+    setShowBetter(false);
   }, [selected]);
 
   function resetResults() {
@@ -279,6 +281,25 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
       setExplainBusy(false);
     }
   }
+
+  /** Tap on a move number or the graph: go to that position, point out a mistake and explain it. */
+  function tapMove(index: number) {
+    setSelected(index);
+    const target = index > 0 ? analysis?.plies[index - 1] : undefined;
+    if (target && IMPORTANT.has(target.classification)) void explainMove(target);
+  }
+
+  // The better move, as squares on the position before the mistake (worked out by chess.js from the engine's move).
+  const better = useMemo(() => {
+    if (!ply || !ply.bestSan || ply.classification === "best" || ply.classification === "good") return null;
+    try {
+      const before = new Chess(ply.fenBefore);
+      const made = before.move(ply.bestSan);
+      return { game: new Chess(ply.fenBefore), hint: { from: made.from, to: made.to }, san: ply.bestSan };
+    } catch {
+      return null;
+    }
+  }, [ply]);
 
   // While the replay plays, stop at important moves and explain them.
   useEffect(() => {
@@ -496,11 +517,26 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
           </div>
           )}
 
-          {analysis && <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={setSelected} />}
+          {analysis && <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={tapMove} />}
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="w-full min-w-0 max-w-[600px] space-y-3">
-              <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} hold={holdPly === selected} onPlayingChange={setPlaying} />
+              <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} hold={holdPly === selected}
+                badMove={ply !== null && IMPORTANT.has(ply.classification)}
+                overlay={showBetter && better ? { game: better.game, hint: better.hint, caption: `Better move: ${better.san}` } : null}
+                onPlayingChange={setPlaying}
+              />
+              {better && (
+                <button
+                  type="button"
+                  onClick={() => setShowBetter((on) => !on)}
+                  aria-pressed={showBetter}
+                  className="min-h-11 w-full rounded-xl border px-4 py-2 text-sm font-semibold"
+                  style={{ borderColor: showBetter ? "#22c55e" : "var(--border)", touchAction: "manipulation" }}
+                >
+                  {showBetter ? "Back to the move played" : "Show the better move"}
+                </button>
+              )}
               {analysis && (
                 <p className="text-sm" style={{ color: "var(--muted)" }}>
                   Evaluation: {analysis.evalTexts[selected] ?? "—"}
@@ -648,7 +684,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => setSelected(item.ply)}
+                        onClick={() => tapMove(item.ply)}
                         className="flex min-h-9 min-w-0 flex-1 items-center justify-between rounded px-2 py-1 text-left"
                         style={{ background: selected === item.ply ? "var(--surface)" : "transparent", fontWeight: selected === item.ply ? 600 : 400 }}
                       >

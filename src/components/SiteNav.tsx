@@ -4,6 +4,7 @@ import { AchievementToaster } from "@/components/AchievementToaster";
 import { FriendsNavLink } from "@/components/friends/FriendsNavLink";
 import { SoundToggle } from "@/components/SoundToggle";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { DISCORD_URL } from "@/lib/links";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getCurrentUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
@@ -41,6 +42,9 @@ export async function SiteNav() {
             </Link>
           ))}
           {user && <FriendsNavLink />}
+          <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }} className="shrink-0 rounded-full px-3 py-1.5 font-medium hover:opacity-80 sm:px-0 sm:py-0" translate="no">
+            Discord
+          </a>
         </div>
         <span className="ml-auto flex items-center gap-3 sm:gap-4">
           <LanguageSwitcher />

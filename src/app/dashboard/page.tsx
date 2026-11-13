@@ -68,6 +68,10 @@ export default async function DashboardPage() {
         <Hub nextLesson={nextLesson} />
       </div>
 
+      <div className="mt-4">
+        <DiscordButton className="card w-full rounded-xl px-6 py-3.5 text-sm font-semibold sm:w-auto" />
+      </div>
+
       {dbError ? (
         <p
           role="alert"
@@ -93,9 +97,6 @@ export default async function DashboardPage() {
           ))}
         </section>
       )}
-      <div className="mt-8">
-        <DiscordButton />
-      </div>
     </main>
   );
 }

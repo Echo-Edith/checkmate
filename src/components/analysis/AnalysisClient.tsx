@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { EvalGraph } from "@/components/analysis/EvalGraph";
+import { ShareReplayButton } from "@/components/analysis/ShareReplayButton";
 import { ReplayPanel, type ReplayStep } from "@/components/analysis/ReplayPanel";
 import { analyzeGame, type GameAnalysis, type PlyAnalysis } from "@/lib/analysis/analyze";
 import { factualNote, IMPORTANT, isFaithful, readMs, titleFor } from "@/lib/analysis/commentary";
@@ -526,6 +527,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                 overlay={showBetter && better ? { game: better.game, hint: better.hint, caption: `Better move: ${better.san}` } : null}
                 onPlayingChange={setPlaying}
               />
+              <ShareReplayButton moves={moves} loggedIn={loggedIn} />
               {better && (
                 <button
                   type="button"

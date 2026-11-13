@@ -20,6 +20,7 @@ export function isLang(value: unknown): value is Lang {
 
 const en = {
   "lang.label": "Language",
+  "discord.join": "Join our Discord server",
   "nav.play": "Play",
   "nav.puzzles": "Puzzles",
   "nav.lessons": "Lessons",
@@ -91,6 +92,7 @@ type Dict = Record<MessageKey, string>;
 
 const es: Dict = {
   "lang.label": "Idioma",
+  "discord.join": "Únete a nuestro servidor de Discord",
   "nav.play": "Jugar", "nav.puzzles": "Problemas", "nav.lessons": "Lecciones", "nav.online": "En línea", "nav.analyse": "Analizar", "nav.players": "Jugadores", "nav.owner": "Panel del dueño", "nav.profile": "Perfil", "nav.logout": "Cerrar sesión", "nav.login": "Iniciar sesión", "nav.signup": "Registrarse",
   "land.badge": "Tutor de ajedrez con IA", "land.title": "Aprende ajedrez con un tutor que habla.", "land.sub": "Lecciones, problemas y un tutor que habla.", "land.create": "Crear cuenta gratis", "land.playNow": "Jugar ahora",
   "feat.play": "Juega contra la computadora o un amigo.", "feat.puzzles": "Resuelve tácticas con pistas.", "feat.lessons": "Aprende paso a paso.", "feat.analyse": "Encuentra tus errores.",
@@ -103,6 +105,7 @@ const es: Dict = {
 
 const fr: Dict = {
   "lang.label": "Langue",
+  "discord.join": "Rejoindre notre serveur Discord",
   "nav.play": "Jouer", "nav.puzzles": "Problèmes", "nav.lessons": "Leçons", "nav.online": "En ligne", "nav.analyse": "Analyser", "nav.players": "Joueurs", "nav.owner": "Panneau du propriétaire", "nav.profile": "Profil", "nav.logout": "Se déconnecter", "nav.login": "Se connecter", "nav.signup": "S'inscrire",
   "land.badge": "Tuteur d'échecs IA", "land.title": "Apprenez les échecs avec un tuteur qui parle.", "land.sub": "Leçons, problèmes et un tuteur qui parle.", "land.create": "Créer un compte gratuit", "land.playNow": "Jouer maintenant",
   "feat.play": "Jouez contre l'ordinateur ou un ami.", "feat.puzzles": "Résolvez des tactiques avec des indices.", "feat.lessons": "Apprenez pas à pas.", "feat.analyse": "Trouvez vos erreurs.",
@@ -115,6 +118,7 @@ const fr: Dict = {
 
 const de: Dict = {
   "lang.label": "Sprache",
+  "discord.join": "Unserem Discord-Server beitreten",
   "nav.play": "Spielen", "nav.puzzles": "Aufgaben", "nav.lessons": "Lektionen", "nav.online": "Online", "nav.analyse": "Analyse", "nav.players": "Spieler", "nav.owner": "Besitzer-Bereich", "nav.profile": "Profil", "nav.logout": "Abmelden", "nav.login": "Anmelden", "nav.signup": "Registrieren",
   "land.badge": "KI-Schachtrainer", "land.title": "Lerne Schach mit einem sprechenden Trainer.", "land.sub": "Lektionen, Aufgaben und ein Trainer, der spricht.", "land.create": "Kostenloses Konto erstellen", "land.playNow": "Jetzt spielen",
   "feat.play": "Spiele gegen den Computer oder einen Freund.", "feat.puzzles": "Löse Taktiken mit Hinweisen.", "feat.lessons": "Lerne Schritt für Schritt.", "feat.analyse": "Finde deine Fehler.",
@@ -127,6 +131,7 @@ const de: Dict = {
 
 const pt: Dict = {
   "lang.label": "Idioma",
+  "discord.join": "Entrar no nosso servidor do Discord",
   "nav.play": "Jogar", "nav.puzzles": "Problemas", "nav.lessons": "Aulas", "nav.online": "Online", "nav.analyse": "Analisar", "nav.players": "Jogadores", "nav.owner": "Painel do dono", "nav.profile": "Perfil", "nav.logout": "Sair", "nav.login": "Entrar", "nav.signup": "Cadastrar",
   "land.badge": "Tutor de xadrez com IA", "land.title": "Aprenda xadrez com um tutor que fala.", "land.sub": "Aulas, problemas e um tutor que fala.", "land.create": "Criar conta grátis", "land.playNow": "Jogar agora",
   "feat.play": "Jogue contra o computador ou um amigo.", "feat.puzzles": "Resolva táticas com dicas.", "feat.lessons": "Aprenda passo a passo.", "feat.analyse": "Encontre seus erros.",
@@ -139,6 +144,7 @@ const pt: Dict = {
 
 const ja: Dict = {
   "lang.label": "言語",
+  "discord.join": "Discordサーバーに参加",
   "nav.play": "対局", "nav.puzzles": "パズル", "nav.lessons": "レッスン", "nav.online": "オンライン", "nav.analyse": "分析", "nav.players": "プレイヤー", "nav.owner": "オーナーパネル", "nav.profile": "プロフィール", "nav.logout": "ログアウト", "nav.login": "ログイン", "nav.signup": "新規登録",
   "land.badge": "AIチェスチューター", "land.title": "話すチューターとチェスを学ぼう。", "land.sub": "レッスン、パズル、そして話すチューター。", "land.create": "無料アカウントを作成", "land.playNow": "今すぐ対局",
   "feat.play": "コンピューターや友達と対局。", "feat.puzzles": "ヒント付きで戦術を解こう。", "feat.lessons": "一歩ずつ学ぼう。", "feat.analyse": "ミスを見つけよう。",
@@ -151,6 +157,7 @@ const ja: Dict = {
 
 const zh: Dict = {
   "lang.label": "语言",
+  "discord.join": "加入我们的 Discord 服务器",
   "nav.play": "对弈", "nav.puzzles": "谜题", "nav.lessons": "课程", "nav.online": "在线", "nav.analyse": "分析", "nav.players": "玩家", "nav.owner": "站长面板", "nav.profile": "个人资料", "nav.logout": "退出登录", "nav.login": "登录", "nav.signup": "注册",
   "land.badge": "AI 国际象棋导师", "land.title": "和会说话的导师一起学国际象棋。", "land.sub": "课程、谜题，还有会说话的导师。", "land.create": "免费创建账号", "land.playNow": "立即对弈",
   "feat.play": "与电脑或朋友对弈。", "feat.puzzles": "在提示下解战术题。", "feat.lessons": "一步一步学习。", "feat.analyse": "找出你的失误。",

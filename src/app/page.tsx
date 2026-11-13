@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DiscordButton } from "@/components/DiscordButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -69,6 +70,7 @@ export default async function HomePage() {
                 </Link>
               </>
             )}
+            <DiscordButton />
           </div>
         </div>
         <div className="flex justify-center lg:justify-end">

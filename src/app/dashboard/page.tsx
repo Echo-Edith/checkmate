@@ -1,3 +1,4 @@
+import { DiscordButton } from "@/components/DiscordButton";
 import { Hub } from "@/components/dashboard/Hub";
 import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/auth";
@@ -92,6 +93,9 @@ export default async function DashboardPage() {
           ))}
         </section>
       )}
+      <div className="mt-8">
+        <DiscordButton />
+      </div>
     </main>
   );
 }

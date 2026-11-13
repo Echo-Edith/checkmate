@@ -23,6 +23,11 @@ const LINKS: Array<{ href: string; key: MessageKey }> = [
 export async function SiteNav() {
   const user = await getCurrentUser();
   const t = await getT();
+  const discord = (
+    <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="rounded-md border px-3 py-1" style={{ borderColor: "var(--border)", color: "var(--accent)" }} translate="no">
+      Discord
+    </a>
+  );
 
   return (
     <>
@@ -42,9 +47,6 @@ export async function SiteNav() {
             </Link>
           ))}
           {user && <FriendsNavLink />}
-          <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }} className="shrink-0 rounded-full px-3 py-1.5 font-medium hover:opacity-80 sm:px-0 sm:py-0" translate="no">
-            Discord
-          </a>
         </div>
         <span className="ml-auto flex items-center gap-3 sm:gap-4">
           <LanguageSwitcher />
@@ -55,6 +57,7 @@ export async function SiteNav() {
               <Link href="/profile" style={{ color: "var(--muted)" }}>
                 {t("nav.profile")}
               </Link>
+              {discord}
               <form action="/auth/logout" method="post">
                 <button type="submit" className="rounded-md border px-3 py-1" style={{ borderColor: "var(--border)" }}>
                   {t("nav.logout")}
@@ -63,6 +66,7 @@ export async function SiteNav() {
             </>
           ) : (
             <>
+              {discord}
               <Link href="/login" style={{ color: "var(--muted)" }}>
                 {t("nav.login")}
               </Link>

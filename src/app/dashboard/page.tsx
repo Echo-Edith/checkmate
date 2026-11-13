@@ -1,4 +1,3 @@
-import { DiscordButton } from "@/components/DiscordButton";
 import { Hub } from "@/components/dashboard/Hub";
 import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/auth";
@@ -66,10 +65,6 @@ export default async function DashboardPage() {
 
       <div className="mt-6">
         <Hub nextLesson={nextLesson} />
-      </div>
-
-      <div className="mt-4">
-        <DiscordButton className="card w-full rounded-xl px-6 py-3.5 text-sm font-semibold sm:w-auto" />
       </div>
 
       {dbError ? (

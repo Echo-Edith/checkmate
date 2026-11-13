@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { EvalGraph } from "@/components/analysis/EvalGraph";
-import { ChessBoard } from "@/components/chess/ChessBoard";
+import { ReplayPanel, type ReplayStep } from "@/components/analysis/ReplayPanel";
 import { analyzeGame, type GameAnalysis, type PlyAnalysis } from "@/lib/analysis/analyze";
 import { useStockfish } from "@/lib/engine/useStockfish";
 import type { GameSummary } from "@/lib/db/games";
@@ -12,7 +12,6 @@ import { askTutor, TutorClientError } from "@/lib/tutor/client";
 import { CLASSIFICATIONS, PERSONAS, type MoveClassification, type Persona } from "@/lib/tutor/schema";
 
 const borderStyle = { borderColor: "var(--border)" } as const;
-const noop = () => undefined;
 
 const BADGE: Record<MoveClassification, { label: string; color: string }> = {
   best: { label: "Best", color: "#16a34a" },
@@ -146,17 +145,30 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     return game;
   }, [moves, selected]);
 
-  const lastMove = ply ? { from: ply.from, to: ply.to } : null;
+  // Every move of the game with its squares, straight from chess.js (works before the engine analysis too).
+  const steps = useMemo<ReplayStep[]>(() => {
+    if (!moves) return [];
+    const game = new Chess();
+    const list: ReplayStep[] = [];
+    for (const [index, san] of moves.entries()) {
+      const made = game.move(san);
+      list.push({ san: made.san, from: made.from, to: made.to, color: made.color, moveNumber: Math.floor(index / 2) + 1 });
+    }
+    return list;
+  }, [moves]);
+  const total = moves?.length ?? 0;
 
   const keyHandler = useCallback(
     (event: KeyboardEvent) => {
-      if (!analysis) return;
+      if (total === 0) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.tagName === "SELECT")) return;
       if (event.key === "ArrowLeft") setSelected((s) => Math.max(0, s - 1));
-      else if (event.key === "ArrowRight") setSelected((s) => Math.min(analysis.plies.length, s + 1));
+      else if (event.key === "ArrowRight") setSelected((s) => Math.min(total, s + 1));
+      else if (event.key === "Home") setSelected(0);
+      else if (event.key === "End") setSelected(total);
     },
-    [analysis],
+    [total],
   );
   useEffect(() => {
     window.addEventListener("keydown", keyHandler);
@@ -351,8 +363,9 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
         </section>
       )}
 
-      {analysis && (
+      {moves && (
         <section className="space-y-6">
+          {analysis && (
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
@@ -376,26 +389,45 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
               </div>
             ))}
           </div>
+          )}
 
-          <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={setSelected} />
+          {analysis && <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={setSelected} />}
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="w-full max-w-[600px] space-y-3">
-              <ChessBoard game={boardGame} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} animate={false} />
-              <div className="flex gap-2">
-                <button type="button" className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40" style={borderStyle} disabled={selected === 0} onClick={() => setSelected((s) => Math.max(0, s - 1))} aria-label="Previous move">
-                  ‹
-                </button>
-                <button type="button" className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40" style={borderStyle} disabled={selected === analysis.plies.length} onClick={() => setSelected((s) => Math.min(analysis.plies.length, s + 1))} aria-label="Next move">
-                  ›
-                </button>
-                <span className="self-center text-sm" style={{ color: "var(--muted)" }}>
+              <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} />
+              {analysis && (
+                <p className="text-sm" style={{ color: "var(--muted)" }}>
                   Evaluation: {analysis.evalTexts[selected] ?? "—"}
-                </span>
-              </div>
+                </p>
+              )}
             </div>
 
             <div className="w-full max-w-[600px] space-y-4 lg:w-96">
+              {!analysis && (
+                <>
+                  <p className="rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)", color: "var(--muted)" }}>
+                    Press Play to watch the game. Tap Analyse game above to also see mistakes, accuracy and the AI tutor.
+                  </p>
+                  <ol className="max-h-80 space-y-0.5 overflow-y-auto rounded-lg border p-2 text-sm" style={borderStyle} translate="no">
+                    {steps.map((item, index) => (
+                      <li key={index}>
+                        <button
+                          type="button"
+                          onClick={() => setSelected(index + 1)}
+                          className="flex min-h-9 w-full items-center rounded px-2 py-1 text-left"
+                          style={{ background: selected === index + 1 ? "var(--surface)" : "transparent", fontWeight: selected === index + 1 ? 600 : 400 }}
+                        >
+                          {item.moveNumber}
+                          {item.color === "w" ? "." : "..."} {item.san}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+              {analysis && (
+              <>
               <div className="rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)" }}>
                 {ply ? (
                   <>
@@ -483,6 +515,8 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                   </li>
                 ))}
               </ol>
+              </>
+              )}
             </div>
           </div>
         </section>

@@ -92,6 +92,15 @@ export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onP
   }
 
   const step = selected > 0 ? steps[selected - 1] : undefined;
+  // How the game ended, read from the final position (checkmate and draws are worked out by chess.js).
+  let ending: string | null = null;
+  if (atEnd && total > 0) {
+    if (game.isCheckmate()) ending = `Checkmate. ${game.turn() === "w" ? "Black" : "White"} wins.`;
+    else if (game.isStalemate()) ending = "Draw by stalemate.";
+    else if (game.isInsufficientMaterial()) ending = "Draw: not enough pieces to checkmate.";
+    else if (game.isThreefoldRepetition()) ending = "Draw by repetition.";
+    else if (game.isDraw()) ending = "Draw by the 50-move rule.";
+  }
   const lastMove = step ? { from: step.from, to: step.to } : null;
   const percent = total > 0 ? (selected / total) * 100 : 0;
 
@@ -100,7 +109,7 @@ export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onP
       <ChessBoard game={game} orientation="w" interactive={false} lastMove={lastMove} onMove={noop} animate={animate} />
 
       <div className="space-y-3 rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }} role="group" aria-label="Replay controls">
-        <div className="flex items-baseline justify-between gap-3 text-sm">
+        <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
           <span translate="no" className="min-w-0 truncate font-semibold">
             {step ? `${step.moveNumber}${step.color === "w" ? "." : "..."} ${step.san}` : "Start"}
           </span>
@@ -108,6 +117,12 @@ export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onP
             Move {Math.ceil(selected / 2)} of {Math.ceil(total / 2)}
           </span>
         </div>
+
+        {ending && (
+          <p role="status" className="rounded-lg px-3 py-2 text-center text-sm font-semibold" style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)" }}>
+            {ending}
+          </p>
+        )}
 
         <input
           type="range"

@@ -30,6 +30,7 @@ interface AnalysisClientProps {
 function parseMoves(text: string): string[] {
   const game = new Chess();
   game.loadPgn(text.trim());
+  if ((game.header() as Record<string, string | null>).FEN) throw new Error("custom start");
   return game.history();
 }
 
@@ -40,13 +41,13 @@ function resultLabel(game: GameSummary): string {
 }
 
 export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
-  const { status: engineStatus, error: engineError, engine } = useStockfish(true);
-
   const [games, setGames] = useState<GameSummary[]>([]);
   const [gamesError, setGamesError] = useState<string | null>(null);
   const [pasted, setPasted] = useState("");
   const [moves, setMoves] = useState<string[] | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
+  // The engine starts only once a game is loaded (not for visitors who just open the page).
+  const { status: engineStatus, error: engineError, engine } = useStockfish(moves !== null);
   const [depth, setDepth] = useState(12);
 
   const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
@@ -63,6 +64,8 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   const [canSpeak, setCanSpeak] = useState(false);
   const commentCache = useRef(new Map<number, { text: string; checked: boolean }>());
   const commentedRef = useRef(new Set<number>());
+  const timers = useRef(new Set<number>());
+  const selectedRef = useRef(0);
   const [explainBusy, setExplainBusy] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
 
@@ -86,8 +89,16 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => {
     setCanSpeak(speechSupported());
-    return () => stopSpeaking();
+    const pending = timers.current;
+    return () => {
+      stopSpeaking();
+      pending.forEach((id) => window.clearTimeout(id));
+      pending.clear();
+    };
   }, []);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
 
   function resetResults() {
     abortRef.current?.abort();
@@ -111,7 +122,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
       setMoves(parsedMoves);
     } catch {
       setMoves(null);
-      setInputError("Could not read that game. Paste a PGN or a list of moves such as: 1. e4 e5 2. Nf3 Nc6");
+      setInputError("Could not read that game. Paste a PGN (from the normal starting position) or a list of moves such as: 1. e4 e5 2. Nf3 Nc6");
     }
   }
 
@@ -158,7 +169,11 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   const boardGame = useMemo(() => {
     if (!moves) return new Chess();
     const game = new Chess();
-    for (const san of moves.slice(0, selected)) game.move(san);
+    try {
+      for (const san of moves.slice(0, selected)) game.move(san);
+    } catch {
+      // A damaged saved game: show the position reached so far instead of crashing the page.
+    }
     return game;
   }, [moves, selected]);
 
@@ -167,13 +182,17 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     if (!moves) return [];
     const game = new Chess();
     const list: ReplayStep[] = [];
-    for (const [index, san] of moves.entries()) {
-      const made = game.move(san);
-      list.push({ san: made.san, from: made.from, to: made.to, color: made.color, moveNumber: Math.floor(index / 2) + 1 });
+    try {
+      for (const [index, san] of moves.entries()) {
+        const made = game.move(san);
+        list.push({ san: made.san, from: made.from, to: made.to, color: made.color, moveNumber: Math.floor(index / 2) + 1 });
+      }
+    } catch {
+      // Stop at the first move that cannot be played.
     }
     return list;
   }, [moves]);
-  const total = moves?.length ?? 0;
+  const total = steps.length;
 
   const keyHandler = useCallback(
     (event: KeyboardEvent) => {
@@ -225,6 +244,15 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     return result;
   }
 
+  /** A timeout that is cancelled if the page is closed. */
+  function later(callback: () => void, ms: number) {
+    const id = window.setTimeout(() => {
+      timers.current.delete(id);
+      callback();
+    }, ms);
+    timers.current.add(id);
+  }
+
   function speakComment(text: string, onEnd: () => void) {
     let finished = false;
     const done = () => {
@@ -234,7 +262,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     };
     createLiveSpeaker(done).finish(text);
     // If the browser never reports the end, do not leave the replay waiting.
-    window.setTimeout(done, readMs(text) * 2);
+    later(done, readMs(text) * 2);
   }
 
   /** Tap on a move: show the explanation for it (and read it if voice commentary is on). */
@@ -246,7 +274,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     try {
       const comment = await commentOn(target);
       setExplanation({ ply: target.ply, ...comment });
-      if (voiceCommentary && canSpeak) speakComment(comment.text, () => undefined);
+      if (voiceCommentary && canSpeak && selectedRef.current === target.ply) speakComment(comment.text, () => undefined);
     } finally {
       setExplainBusy(false);
     }
@@ -265,8 +293,10 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
       const comment = await commentOn(target);
       setExplanation({ ply: at, ...comment });
       const release = () => setHoldPly((current) => (current === at ? null : current));
+      // The user may have moved on while the comment was being written.
+      if (selectedRef.current !== at) return release();
       if (voiceCommentary && canSpeak) speakComment(comment.text, release);
-      else window.setTimeout(release, readMs(comment.text));
+      else later(release, readMs(comment.text));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, playing, analysis, autoCommentary]);
@@ -322,7 +352,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   const analysing = progress !== null;
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8 overflow-x-clip">
       <section className="grid gap-6 md:grid-cols-2">
         <div className="space-y-2">
           <h2 className="font-semibold">Paste a game</h2>
@@ -469,7 +499,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
           {analysis && <EvalGraph winPercents={analysis.winPercents} selected={selected} onSelect={setSelected} />}
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-            <div className="w-full max-w-[600px] space-y-3">
+            <div className="w-full min-w-0 max-w-[600px] space-y-3">
               <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} hold={holdPly === selected} onPlayingChange={setPlaying} />
               {analysis && (
                 <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -478,7 +508,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
               )}
             </div>
 
-            <div className="w-full max-w-[600px] space-y-4 lg:w-96">
+            <div className="w-full min-w-0 max-w-[600px] space-y-4 lg:w-96">
               {!analysis && (
                 <>
                   <p className="rounded-lg border p-4 text-sm" style={{ ...borderStyle, background: "var(--surface)", color: "var(--muted)" }}>

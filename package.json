@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/copy-stockfish.mjs",
-    "validate:content": "tsx scripts/validate-content.ts"
+    "validate:content": "tsx scripts/validate-content.ts",
+    "test": "tsx --test src/lib/game-result.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

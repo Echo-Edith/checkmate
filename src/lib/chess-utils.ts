@@ -1,4 +1,5 @@
 import { Chess, type PieceSymbol, type Square } from "chess.js";
+import { positionStatus, type GameStatus } from "./game-result";
 
 export interface PlayedMove {
   from: Square;
@@ -43,23 +44,8 @@ export function uciToSan(fen: string, uci: string): string | null {
   }
 }
 
-export interface GameStatus {
-  over: boolean;
-  /** "w" or "b" if someone won, "draw" for a draw, null if in progress. */
-  result: "w" | "b" | "draw" | null;
-  text: string;
-}
+export type { GameStatus } from "./game-result";
 
 export function getStatus(game: Chess): GameStatus {
-  const side = game.turn() === "w" ? "White" : "Black";
-  if (game.isCheckmate()) {
-    const winner = game.turn() === "w" ? "b" : "w";
-    return { over: true, result: winner, text: `Checkmate — ${winner === "w" ? "White" : "Black"} wins` };
-  }
-  if (game.isStalemate()) return { over: true, result: "draw", text: "Draw by stalemate" };
-  if (game.isInsufficientMaterial()) return { over: true, result: "draw", text: "Draw — insufficient material" };
-  if (game.isThreefoldRepetition()) return { over: true, result: "draw", text: "Draw by threefold repetition" };
-  if (game.isDraw()) return { over: true, result: "draw", text: "Draw by the fifty-move rule" };
-  if (game.isCheck()) return { over: false, result: null, text: `${side} to move — check` };
-  return { over: false, result: null, text: `${side} to move` };
+  return positionStatus(game);
 }

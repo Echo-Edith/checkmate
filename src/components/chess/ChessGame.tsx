@@ -83,6 +83,8 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   const [playerColor, setPlayerColor] = useState<Color>(initialColor);
   const [levelIndex, setLevelIndex] = useState(Math.min(LEVELS.length - 1, Math.max(0, initialLevel)));
   const [resigned, setResigned] = useState(false);
+  // Resign needs a second tap so one accidental tap can never record a loss.
+  const [confirmResign, setConfirmResign] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [hint, setHint] = useState<{ text: string; from: Square; to: Square } | null>(null);
   const [animate, setAnimate] = useState(true);
@@ -115,8 +117,11 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
 
   const level = LEVELS[levelIndex] ?? LEVELS[1];
   const game = useMemo(() => replay(moves, viewIndex), [moves, viewIndex]);
-  const baseStatus = useMemo(() => getStatus(game), [game]);
-  const status = resigned
+  // The result always comes from the LATEST position, never from the move being viewed.
+  const latestGame = useMemo(() => replay(moves), [moves]);
+  const baseStatus = useMemo(() => getStatus(latestGame), [latestGame]);
+  // Resigning only counts while the game is still going; a finished board result always wins.
+  const status = resigned && !baseStatus.over
     ? {
         over: true,
         result: playerColor === "w" ? ("b" as const) : ("w" as const),
@@ -287,7 +292,14 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     });
   }, [status.over, reported, moves, playerColor, mode, level.skill, resigned, onGameFinished]);
 
+  useEffect(() => {
+    if (!confirmResign) return;
+    const timer = window.setTimeout(() => setConfirmResign(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmResign, moves.length]);
+
   function startNewGame(nextColor: Color = playerColor) {
+    setConfirmResign(false);
     setMoves([]);
     setViewIndex(0);
     setPending(null);
@@ -481,9 +493,16 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             className={buttonClass}
             style={borderStyle}
             disabled={mode !== "computer" || !gameInProgress}
-            onClick={() => setResigned(true)}
+            onClick={() => {
+              if (confirmResign) {
+                setConfirmResign(false);
+                setResigned(true);
+              } else {
+                setConfirmResign(true);
+              }
+            }}
           >
-            {t("game.resign")}
+            {confirmResign ? "Tap again to resign" : t("game.resign")}
           </button>
           {voice.supported && (
             <button

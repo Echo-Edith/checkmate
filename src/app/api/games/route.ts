@@ -1,8 +1,7 @@
-import { Chess } from "chess.js";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { getStatus } from "@/lib/chess-utils";
+import { decideResult } from "@/lib/game-result";
 import { countGames, insertGame, listGames, MAX_GAMES_PER_USER, type GameDoc } from "@/lib/db/games";
 import { botRatingChange } from "@/lib/elo";
 import { applyRatingDelta, getOrCreateProfile, getRatingInfo, incrementStats } from "@/lib/db/profiles";
@@ -46,26 +45,16 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid game data" }, { status: 400 });
   const { moves, color, mode, level, resigned } = parsed.data;
 
-  // Replay on the server: illegal games are rejected and the result is computed here,
-  // never trusted from the client.
-  const game = new Chess();
-  for (const san of moves) {
-    try {
-      game.move(san);
-    } catch {
+  // Decide the result on the server from the moves. The client result is never trusted,
+  // and reaching the end of the move list is never treated as a loss.
+  const decision = decideResult(moves, color, mode, resigned);
+  if (!decision.ok) {
+    if (decision.error === "illegal") {
       return NextResponse.json({ error: "The game contains an illegal move." }, { status: 400 });
     }
-  }
-
-  const status = getStatus(game);
-  let result: GameDoc["result"];
-  if (status.over && status.result) {
-    result = status.result === "draw" ? "1/2-1/2" : status.result === "w" ? "1-0" : "0-1";
-  } else if (resigned && mode === "computer") {
-    result = color === "w" ? "0-1" : "1-0";
-  } else {
     return NextResponse.json({ error: "Only finished games can be saved." }, { status: 400 });
   }
+  const result: GameDoc["result"] = decision.result;
 
   try {
     if ((await countGames(user.id)) >= MAX_GAMES_PER_USER) {
@@ -83,7 +72,7 @@ export async function POST(request: NextRequest) {
       color,
       mode,
       level,
-      resigned,
+      resigned: decision.resigned,
       plies: moves.length,
       createdAt: new Date(),
     });

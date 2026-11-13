@@ -24,6 +24,9 @@ interface ReplayPanelProps {
   steps: readonly ReplayStep[];
   selected: number;
   onSelect: (index: number) => void;
+  /** While true, playback waits on the current move (for example while a comment is read). */
+  hold?: boolean;
+  onPlayingChange?: (playing: boolean) => void;
 }
 
 function IconButton({ label, onClick, disabled, children, primary = false }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode; primary?: boolean }) {
@@ -46,7 +49,7 @@ function IconButton({ label, onClick, disabled, children, primary = false }: { l
  * Video-style replay of a game. Positions come from chess.js, so every frame is a legal position.
  * Play / pause, previous, next, restart, a draggable timeline and four speeds. It pauses itself at the end.
  */
-export function ReplayPanel({ game, steps, selected, onSelect }: ReplayPanelProps) {
+export function ReplayPanel({ game, steps, selected, onSelect, hold = false, onPlayingChange }: ReplayPanelProps) {
   const total = steps.length;
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
@@ -59,9 +62,13 @@ export function ReplayPanel({ game, steps, selected, onSelect }: ReplayPanelProp
     previous.current = selected;
   }, [selected]);
 
+  useEffect(() => {
+    onPlayingChange?.(playing);
+  }, [playing, onPlayingChange]);
+
   // The "clock": one move per tick, and a stop at the end.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || hold) return;
     if (selected >= total) {
       setPlaying(false);
       return;
@@ -73,7 +80,7 @@ export function ReplayPanel({ game, steps, selected, onSelect }: ReplayPanelProp
       onSelect(next);
     }, BASE_MS / speed);
     return () => window.clearTimeout(timer);
-  }, [playing, selected, speed, total, steps, onSelect]);
+  }, [playing, hold, selected, speed, total, steps, onSelect]);
 
   function togglePlay() {
     if (playing) {

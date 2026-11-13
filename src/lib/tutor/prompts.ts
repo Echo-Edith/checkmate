@@ -94,7 +94,7 @@ export function buildUserPrompt(input: PromptInput): { persona: Persona; text: s
     case "explain_move":
       return {
         persona: request.persona,
-        text: `${positionSection(request.fen)}\n${moveSection(request.move)}\n\nTASK: Explain in simple terms why this move received that classification and what the player could learn from it. The position above is the position BEFORE the move was played.`,
+        text: `${positionSection(request.fen)}\n${moveSection(request.move)}\n\nTASK: Give a short commentary on this move. Say what the move did and why the engine gave it that classification. If the move was an inaccuracy, mistake or blunder and an engine preferred move is listed, say what that move would have done better. If it was good or best, say briefly why it works. Mention ONLY the move played and the engine's preferred move, and quote ONLY the evaluations listed above. Never invent other moves, lines or numbers. The position above is the position BEFORE the move was played.`,
       };
     case "game_summary":
       return {

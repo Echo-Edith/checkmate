@@ -6,6 +6,8 @@ import { Chess } from "chess.js";
 import { EvalGraph } from "@/components/analysis/EvalGraph";
 import { ReplayPanel, type ReplayStep } from "@/components/analysis/ReplayPanel";
 import { analyzeGame, type GameAnalysis, type PlyAnalysis } from "@/lib/analysis/analyze";
+import { factualNote, IMPORTANT, isFaithful, readMs, titleFor } from "@/lib/analysis/commentary";
+import { createLiveSpeaker, speechSupported, stopSpeaking } from "@/lib/speech";
 import { useStockfish } from "@/lib/engine/useStockfish";
 import type { GameSummary } from "@/lib/db/games";
 import { askTutor, TutorClientError } from "@/lib/tutor/client";
@@ -53,7 +55,14 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   const abortRef = useRef<AbortController | null>(null);
 
   const [persona, setPersona] = useState<Persona>("analyst");
-  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<{ ply: number | "summary"; text: string; checked: boolean } | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [holdPly, setHoldPly] = useState<number | null>(null);
+  const [autoCommentary, setAutoCommentary] = useState(true);
+  const [voiceCommentary, setVoiceCommentary] = useState(false);
+  const [canSpeak, setCanSpeak] = useState(false);
+  const commentCache = useRef(new Map<number, { text: string; checked: boolean }>());
+  const commentedRef = useRef(new Set<number>());
   const [explainBusy, setExplainBusy] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
 
@@ -75,6 +84,10 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
   }, [loggedIn]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => {
+    setCanSpeak(speechSupported());
+    return () => stopSpeaking();
+  }, []);
 
   function resetResults() {
     abortRef.current?.abort();
@@ -83,6 +96,10 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     setSelected(0);
     setExplanation(null);
     setExplainError(null);
+    setHoldPly(null);
+    stopSpeaking();
+    commentCache.current.clear();
+    commentedRef.current.clear();
   }
 
   function loadPasted() {
@@ -175,33 +192,92 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
     return () => window.removeEventListener("keydown", keyHandler);
   }, [keyHandler]);
 
-  async function explainMove() {
-    if (!ply) return;
+  /**
+   * Gets the commentary for one move. The facts (classification, evaluations, better move) come from Stockfish.
+   * The AI only puts them into words, and its answer is checked so it cannot add moves or numbers of its own.
+   */
+  async function commentOn(target: PlyAnalysis): Promise<{ text: string; checked: boolean }> {
+    const saved = commentCache.current.get(target.ply);
+    if (saved) return saved;
+    let result = { text: factualNote(target), checked: false };
+    if (loggedIn) {
+      try {
+        const answer = await askTutor({
+          kind: "explain_move",
+          persona,
+          fen: target.fenBefore,
+          move: {
+            san: target.san,
+            color: target.color,
+            moveNumber: target.moveNumber,
+            classification: target.classification,
+            bestSan: target.bestSan ?? undefined,
+            evalBefore: target.evalBefore,
+            evalAfter: target.evalAfter,
+          },
+        });
+        if (isFaithful(answer, target)) result = { text: answer, checked: true };
+      } catch {
+        // Fall back to the engine-only note above.
+      }
+    }
+    commentCache.current.set(target.ply, result);
+    return result;
+  }
+
+  function speakComment(text: string, onEnd: () => void) {
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      onEnd();
+    };
+    createLiveSpeaker(done).finish(text);
+    // If the browser never reports the end, do not leave the replay waiting.
+    window.setTimeout(done, readMs(text) * 2);
+  }
+
+  /** Tap on a move: show the explanation for it (and read it if voice commentary is on). */
+  async function explainMove(target: PlyAnalysis | null = ply) {
+    if (!target) return;
+    setSelected(target.ply);
     setExplainBusy(true);
     setExplainError(null);
     try {
-      setExplanation(
-        await askTutor({
-          kind: "explain_move",
-          persona,
-          fen: ply.fenBefore,
-          move: {
-            san: ply.san,
-            color: ply.color,
-            moveNumber: ply.moveNumber,
-            classification: ply.classification,
-            bestSan: ply.bestSan ?? undefined,
-            evalBefore: ply.evalBefore,
-            evalAfter: ply.evalAfter,
-          },
-        }),
-      );
-    } catch (err) {
-      setExplainError(err instanceof TutorClientError ? err.message : "The tutor could not answer right now.");
+      const comment = await commentOn(target);
+      setExplanation({ ply: target.ply, ...comment });
+      if (voiceCommentary && canSpeak) speakComment(comment.text, () => undefined);
     } finally {
       setExplainBusy(false);
     }
   }
+
+  // While the replay plays, stop at important moves and explain them.
+  useEffect(() => {
+    if (selected === 0) commentedRef.current.clear();
+    if (!analysis || !autoCommentary || !playing || selected === 0) return;
+    const target = analysis.plies[selected - 1];
+    if (!target || !IMPORTANT.has(target.classification) || commentedRef.current.has(selected)) return;
+    commentedRef.current.add(selected);
+    const at = selected;
+    setHoldPly(at);
+    void (async () => {
+      const comment = await commentOn(target);
+      setExplanation({ ply: at, ...comment });
+      const release = () => setHoldPly((current) => (current === at ? null : current));
+      if (voiceCommentary && canSpeak) speakComment(comment.text, release);
+      else window.setTimeout(release, readMs(comment.text));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, playing, analysis, autoCommentary]);
+
+  // Moving to another move by hand cancels a comment that is being read.
+  useEffect(() => {
+    if (holdPly !== null && holdPly !== selected) {
+      stopSpeaking();
+      setHoldPly(null);
+    }
+  }, [selected, holdPly]);
 
   async function summarise() {
     if (!analysis) return;
@@ -224,8 +300,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
           classification: p.classification,
           bestSan: p.bestSan ?? undefined,
         }));
-      setExplanation(
-        await askTutor({
+      const text = await askTutor({
           kind: "game_summary",
           persona,
           summary: {
@@ -235,8 +310,8 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
             counts,
             keyMoments,
           },
-        }),
-      );
+        });
+      setExplanation({ ply: "summary", text, checked: true });
     } catch (err) {
       setExplainError(err instanceof TutorClientError ? err.message : "The tutor could not answer right now.");
     } finally {
@@ -395,7 +470,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             <div className="w-full max-w-[600px] space-y-3">
-              <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} />
+              <ReplayPanel key={moves.join(" ")} game={boardGame} steps={steps} selected={selected} onSelect={setSelected} hold={holdPly === selected} onPlayingChange={setPlaying} />
               {analysis && (
                 <p className="text-sm" style={{ color: "var(--muted)" }}>
                   Evaluation: {analysis.evalTexts[selected] ?? "—"}
@@ -432,9 +507,11 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                 {ply ? (
                   <>
                     <p className="font-semibold">
-                      {ply.moveNumber}
-                      {ply.color === "w" ? "." : "..."} {ply.san}{" "}
-                      <span style={{ color: BADGE[ply.classification].color }}>{BADGE[ply.classification].label}</span>
+                      <span translate="no">
+                        {ply.moveNumber}
+                        {ply.color === "w" ? "." : "..."} {ply.san}
+                      </span>{" "}
+                      <span style={{ color: BADGE[ply.classification].color }}>{titleFor(ply.classification)}</span>
                     </p>
                     <p className="mt-1" style={{ color: "var(--muted)" }}>
                       Evaluation {ply.evalBefore} → {ply.evalAfter}
@@ -450,6 +527,37 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                   <p style={{ color: "var(--muted)" }}>Select a move to see the engine's verdict.</p>
                 )}
               </div>
+
+              <div className="flex flex-wrap gap-2 text-sm" role="group" aria-label="Commentary options">
+                <button
+                  type="button"
+                  onClick={() => setAutoCommentary((on) => !on)}
+                  aria-pressed={autoCommentary}
+                  className="min-h-10 flex-1 rounded-lg border px-3 py-2 font-medium"
+                  style={{ borderColor: autoCommentary ? "var(--accent)" : "var(--border)", background: autoCommentary ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "transparent", touchAction: "manipulation" }}
+                >
+                  Auto commentary: {autoCommentary ? "on" : "off"}
+                </button>
+                {canSpeak && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (voiceCommentary) stopSpeaking();
+                      setVoiceCommentary((on) => !on);
+                    }}
+                    aria-pressed={voiceCommentary}
+                    className="min-h-10 flex-1 rounded-lg border px-3 py-2 font-medium"
+                    style={{ borderColor: voiceCommentary ? "var(--accent)" : "var(--border)", background: voiceCommentary ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "transparent", touchAction: "manipulation" }}
+                  >
+                    Voice: {voiceCommentary ? "on" : "off"}
+                  </button>
+                )}
+              </div>
+              {holdPly === selected && (!explanation || explanation.ply !== selected) && (
+                <p role="status" className="text-sm" style={{ color: "var(--muted)" }}>
+                  Thinking about this move…
+                </p>
+              )}
 
               <div className="space-y-2 rounded-lg border p-4 text-sm" style={borderStyle}>
                 <div className="flex items-center justify-between gap-2">
@@ -471,7 +579,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                 </div>
                 {loggedIn ? (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void explainMove()} disabled={!ply || explainBusy} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40" style={borderStyle}>
+                    <button type="button" onClick={() => void explainMove(ply)} disabled={!ply || explainBusy} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40" style={borderStyle}>
                       Explain this move
                     </button>
                     <button type="button" onClick={() => void summarise()} disabled={explainBusy} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40" style={borderStyle}>
@@ -492,26 +600,47 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
                     {explainError}
                   </p>
                 )}
-                {explanation && !explainBusy && <p className="whitespace-pre-wrap leading-relaxed">{explanation}</p>}
+                {explanation && !explainBusy && (explanation.ply === "summary" || explanation.ply === selected) && (
+                  <div className="space-y-1">
+                    <p className="whitespace-pre-wrap leading-relaxed">{explanation.text}</p>
+                    {explanation.ply !== "summary" && (
+                      <p className="text-xs" style={{ color: "var(--muted)" }}>
+                        {explanation.checked ? "Written by the AI tutor from Stockfish's numbers." : "From Stockfish's numbers."}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <ol className="max-h-80 space-y-0.5 overflow-y-auto rounded-lg border p-2 text-sm" style={borderStyle}>
                 {analysis.plies.map((item) => (
                   <li key={item.ply}>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(item.ply)}
-                      className="flex w-full items-center justify-between rounded px-2 py-1 text-left"
-                      style={{ background: selected === item.ply ? "var(--surface)" : "transparent", fontWeight: selected === item.ply ? 600 : 400 }}
-                    >
-                      <span>
-                        {item.moveNumber}
-                        {item.color === "w" ? "." : "..."} {item.san}
-                      </span>
-                      <span className="text-xs" style={{ color: BADGE[item.classification].color }}>
-                        {BADGE[item.classification].label}
-                      </span>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(item.ply)}
+                        className="flex min-h-9 min-w-0 flex-1 items-center justify-between rounded px-2 py-1 text-left"
+                        style={{ background: selected === item.ply ? "var(--surface)" : "transparent", fontWeight: selected === item.ply ? 600 : 400 }}
+                      >
+                        <span translate="no">
+                          {item.moveNumber}
+                          {item.color === "w" ? "." : "..."} {item.san}
+                        </span>
+                        <span className="text-xs" style={{ color: BADGE[item.classification].color }}>
+                          {titleFor(item.classification)}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void explainMove(item)}
+                        disabled={explainBusy}
+                        aria-label={`Explain move ${item.moveNumber}${item.color === "w" ? "." : "..."} ${item.san}`}
+                        className="min-h-9 shrink-0 rounded border px-2 text-xs font-medium disabled:opacity-40"
+                        style={{ ...borderStyle, touchAction: "manipulation" }}
+                      >
+                        Explain
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ol>

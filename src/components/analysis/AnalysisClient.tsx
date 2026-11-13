@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { EvalGraph } from "@/components/analysis/EvalGraph";
+import { SharedLinksManager } from "@/components/analysis/SharedLinksManager";
 import { ShareReplayButton } from "@/components/analysis/ShareReplayButton";
 import { ReplayPanel, type ReplayStep } from "@/components/analysis/ReplayPanel";
 import { analyzeGame, type GameAnalysis, type PlyAnalysis } from "@/lib/analysis/analyze";
@@ -718,6 +719,7 @@ export function AnalysisClient({ loggedIn }: AnalysisClientProps) {
           </div>
         </section>
       )}
+      {loggedIn && <SharedLinksManager />}
     </div>
   );
 }

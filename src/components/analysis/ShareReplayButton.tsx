@@ -14,6 +14,7 @@ export function ShareReplayButton({ moves, loggedIn }: { moves: string[]; logged
       const data = (await response.json().catch(() => ({}))) as { id?: string; error?: string };
       if (!response.ok || !data.id) throw new Error(data.error ?? "Could not make the link.");
       const url = `${window.location.origin}/replay/${data.id}`;
+      window.dispatchEvent(new Event("checkm8:shares-changed"));
       // On a phone this opens the normal share sheet. Otherwise the link is copied.
       if (typeof navigator.share === "function") {
         try {

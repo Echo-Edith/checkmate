@@ -329,9 +329,9 @@ export function ChessBoard({ game, orientation, interactive, lastMove, onMove, a
                 {isTarget && bestTarget === square && (
                   <>
                     <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 0 0.8cqw rgba(250, 204, 21, 0.98)", background: "rgba(250, 204, 21, 0.3)" }} />
-                    <span className="absolute right-0.5 top-0 text-[3cqw] leading-none" style={{ color: "#facc15", textShadow: "0 0 3px #000" }} aria-label="best square">
-                      ★
-                    </span>
+                    <svg className="absolute right-0.5 top-0.5" width="30%" height="30%" viewBox="0 0 24 24" role="img" aria-label="best square" style={{ filter: "drop-shadow(0 0 2px #000)" }}>
+                      <path fill="#facc15" d="m12 2.500 2.900 6.200 6.800.8-5 4.700 1.300 6.700-6-3.400-6 3.400 1.300-6.700-5-4.700 6.800-.8Z" />
+                    </svg>
                   </>
                 )}
                 {checkSquare === square && (

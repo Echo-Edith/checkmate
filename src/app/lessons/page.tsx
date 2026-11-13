@@ -81,7 +81,7 @@ export default async function LessonsPage() {
                     </span>
                     {done && (
                       <span className="shrink-0 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                        ✓ Done
+                        Done
                       </span>
                     )}
                   </Link>

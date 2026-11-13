@@ -68,7 +68,7 @@ export function FriendButton({ playerId }: { playerId: string }) {
       {status === "friends" && (
         <>
           <span className="rounded-full px-3 py-1.5 text-sm font-medium" style={{ background: "color-mix(in srgb, var(--accent) 18%, transparent)", color: "var(--accent)" }}>
-            ✓ Friends
+            Friends
           </span>
           <button type="button" disabled={busy} onClick={() => void act("remove", "none")} className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-60" style={border}>
             Remove

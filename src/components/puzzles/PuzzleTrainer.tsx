@@ -274,7 +274,7 @@ export function PuzzleTrainer({ loggedIn, initialStats, initialToday, dailyLimit
                   }}
                 >
                   <span>{puzzle.title}</span>
-                  {stats.solved.includes(puzzle.id) && <span style={{ color: "var(--accent)" }}>✓</span>}
+                  {stats.solved.includes(puzzle.id) && <span style={{ color: "var(--accent)" }}>Solved</span>}
                 </button>
               </li>
             ))}

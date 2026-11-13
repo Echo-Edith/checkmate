@@ -33,6 +33,25 @@ interface ReplayPanelProps {
   onPlayingChange?: (playing: boolean) => void;
 }
 
+const ICON = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": true } as const;
+const RestartIcon = () => (
+  <svg {...ICON}>
+    <rect x="5" y="5" width="3" height="14" rx="1" />
+    <path d="M19 5.5v13a1 1 0 0 1-1.6.8l-8.7-6.5a1 1 0 0 1 0-1.6l8.7-6.5A1 1 0 0 1 19 5.5Z" />
+  </svg>
+);
+const PlayIcon = () => (
+  <svg {...ICON}>
+    <path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.4-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5Z" />
+  </svg>
+);
+const PauseIcon = () => (
+  <svg {...ICON}>
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </svg>
+);
+
 function IconButton({ label, onClick, disabled, children, primary = false }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode; primary?: boolean }) {
   return (
     <button
@@ -158,13 +177,13 @@ export function ReplayPanel({ game, steps, selected, onSelect, hold = false, bad
 
         <div className="flex items-stretch justify-center gap-2">
           <IconButton label="Restart" onClick={() => { setPlaying(false); onSelect(0); }} disabled={selected === 0 && !playing}>
-            ⏮
+            <RestartIcon />
           </IconButton>
           <IconButton label="Previous move" onClick={() => { setPlaying(false); onSelect(Math.max(0, selected - 1)); }} disabled={selected === 0}>
             ‹
           </IconButton>
           <IconButton label={playing ? "Pause" : atEnd ? "Replay" : "Play"} onClick={togglePlay} disabled={total === 0} primary>
-            {playing ? "❚❚" : "▶"}
+            {playing ? <PauseIcon /> : <PlayIcon />}
           </IconButton>
           <IconButton label="Next move" onClick={() => { setPlaying(false); onSelect(Math.min(total, selected + 1)); }} disabled={atEnd}>
             ›

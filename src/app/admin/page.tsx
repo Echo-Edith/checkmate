@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaintenanceToggle } from "@/components/admin/MaintenanceToggle";
+import { AiUsageSetting } from "@/components/admin/AiUsageSetting";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { getOwner } from "@/lib/admin-auth";
 
@@ -17,6 +18,7 @@ export default async function AdminPage() {
         Search players and give or remove the Tester badge.
       </p>
       <MaintenanceToggle />
+      <AiUsageSetting />
       <AdminUsers />
     </main>
   );

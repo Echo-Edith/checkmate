@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { LANGS } from "@/lib/i18n/messages";
 import { getLang } from "@/lib/i18n/server";
 import { findPuzzle } from "@/lib/content/generate";
+import { isOwnerEmail } from "@/lib/badges";
+import { getAiDailyLimit, isTester, takeAiUse } from "@/lib/db/settings";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { GeminiError, streamGemini } from "@/lib/tutor/gemini";
 import { buildSystemPrompt, buildUserPrompt, isValidFen } from "@/lib/tutor/prompts";
@@ -33,6 +35,17 @@ export async function POST(request: NextRequest) {
 
   if ("fen" in data && data.fen && !isValidFen(data.fen)) {
     return NextResponse.json({ error: "Invalid position" }, { status: 400 });
+  }
+
+  // Free AI usage: the owner sets how many messages each player gets per day. Testers and the owner are unlimited.
+  try {
+    const limit = await getAiDailyLimit();
+    if (limit !== null && !isOwnerEmail(user.email) && !(await isTester(user.id)) && !(await takeAiUse(user.id, limit))) {
+      return NextResponse.json({ error: "You used all your free AI messages for today. Come back tomorrow!" }, { status: 429 });
+    }
+  } catch (error) {
+    // If the limit cannot be checked, do not block the tutor.
+    console.error("AI usage check failed:", error instanceof Error ? error.message : "unknown");
   }
 
   try {

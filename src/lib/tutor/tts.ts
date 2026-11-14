@@ -1,5 +1,6 @@
 import "server-only";
 import { logAiError } from "@/lib/db/ai-errors";
+import { getAccent, type AccentId } from "@/lib/accents";
 import type { Persona } from "@/lib/tutor/schema";
 
 /** Gemini text-to-speech voices and the way each tutor should sound. */
@@ -45,15 +46,18 @@ const cache = new Map<string, Buffer>();
 const CACHE_LIMIT = 60;
 
 /** Turns text into natural, expressive speech. Returns a WAV file. */
-export async function synthesizeSpeech(text: string, persona: Persona): Promise<Buffer> {
+export async function synthesizeSpeech(text: string, persona: Persona, accentId: AccentId = "default"): Promise<Buffer> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new TtsError("Voice is not configured.", 503);
 
-  const key = `${persona}:${text}`;
+  const key = `${persona}:${accentId}:${text}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const { voice, style } = VOICES[persona];
+  const { voice, style: baseStyle } = VOICES[persona];
+  // The text stays in the player's language; only the accent changes.
+  const accent = getAccent(accentId);
+  const style = accent.prompt ? `${baseStyle}, ${accent.prompt}, keeping the same language as the text` : baseStyle;
   const body = {
     contents: [{ parts: [{ text: `${style}: ${text}` }] }],
     generationConfig: {

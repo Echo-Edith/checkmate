@@ -1,6 +1,9 @@
 /** Read-aloud helpers built on the browser's own speech engine (free, no server, nothing to install). */
 
+import { getAccent, isAccentId, type AccentId } from "@/lib/accents";
+
 const VOICE_KEY = "checkm8:voice";
+const ACCENT_KEY = "checkm8:accent";
 const VOICE_EVENT = "checkm8:voice-change";
 
 function browserVoiceSupported(): boolean {
@@ -25,6 +28,25 @@ export function writeVoiceSetting(on: boolean): void {
   } catch {
     // Not saving is fine.
   }
+  window.dispatchEvent(new Event(VOICE_EVENT));
+}
+
+export function readAccent(): AccentId {
+  try {
+    const saved = localStorage.getItem(ACCENT_KEY);
+    return isAccentId(saved) ? saved : "default";
+  } catch {
+    return "default";
+  }
+}
+
+export function writeAccent(id: AccentId): void {
+  try {
+    localStorage.setItem(ACCENT_KEY, id);
+  } catch {
+    // Not saving is fine.
+  }
+  cachedVoice = undefined;
   window.dispatchEvent(new Event(VOICE_EVENT));
 }
 
@@ -61,6 +83,7 @@ export function toSpokenText(input: string): string {
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined;
 let cachedVoiceLang = "";
+let cachedAccent: AccentId = "default";
 
 /** Language code of the site, read from the language cookie. */
 function siteSpeechLang(): string {
@@ -72,11 +95,26 @@ function siteSpeechLang(): string {
 /** Best-sounding voice the device has. "Natural"/"Neural" voices are far less robotic. */
 function pickVoice(): SpeechSynthesisVoice | null {
   const want = siteSpeechLang();
-  if (cachedVoice && cachedVoiceLang === want) return cachedVoice;
+  const accent = readAccent();
+  if (cachedVoice && cachedVoiceLang === want && cachedAccent === accent) return cachedVoice;
   cachedVoice = undefined;
   cachedVoiceLang = want;
+  cachedAccent = accent;
   const voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) return null;
+  // Accent: look for a voice of the same language from that region (for example en-IN), then,
+  // for English text, a native voice of that country as a rough match. The natural server voice does this better.
+  if (accent !== "default") {
+    const info = getAccent(accent);
+    const base = want.slice(0, 2).toLowerCase();
+    const regional = voices.find((voice) => voice.lang.replace("_", "-").toLowerCase() === `${base}-${info.region.toLowerCase()}`);
+    const native = base === "en" ? voices.find((voice) => voice.lang.toLowerCase().startsWith(info.nativeLang)) : undefined;
+    const match = regional ?? native;
+    if (match) {
+      cachedVoice = match;
+      return match;
+    }
+  }
   const english = voices.filter((voice) => voice.lang.toLowerCase().startsWith(want.slice(0, 2)));
   const pool = english.length > 0 ? english : voices;
   const preferred = [/natural|neural|online/i, /premium|enhanced/i, /aria|jenny|guy|samantha|ava|allison|zira/i, /google/i];
@@ -163,7 +201,7 @@ export function speak(text: string, onEnd?: () => void, persona: VoicePersona = 
   fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: spoken.slice(0, 700), persona }),
+    body: JSON.stringify({ text: spoken.slice(0, 700), persona, accent: readAccent() }),
   })
     .then(async (response) => {
       if (token !== playToken) return;

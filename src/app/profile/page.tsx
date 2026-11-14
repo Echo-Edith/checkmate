@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Badges } from "@/components/Badges";
 import { PushToggle } from "@/components/PushToggle";
+import { VoiceAccentPicker } from "@/components/VoiceAccentPicker";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { badgesFor } from "@/lib/badges";
 import { ProfileForm } from "@/components/profile/ProfileForm";
@@ -135,6 +136,8 @@ export default async function ProfilePage() {
             })}
           </ul>
         </section>
+
+        <VoiceAccentPicker />
 
         <PushToggle />
 

@@ -2,12 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { ACCENT_IDS } from "@/lib/accents";
 import { PERSONAS } from "@/lib/tutor/schema";
 import { synthesizeSpeech, TtsError } from "@/lib/tutor/tts";
 
 export const maxDuration = 30;
 
-const bodySchema = z.object({ text: z.string().trim().min(1).max(700), persona: z.enum(PERSONAS).default("teacher") }).strict();
+const bodySchema = z.object({ text: z.string().trim().min(1).max(700), persona: z.enum(PERSONAS).default("teacher"), accent: z.enum(ACCENT_IDS).default("default") }).strict();
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   try {
-    const wav = await synthesizeSpeech(parsed.data.text, parsed.data.persona);
+    const wav = await synthesizeSpeech(parsed.data.text, parsed.data.persona, parsed.data.accent);
     return new Response(new Uint8Array(wav), { headers: { "Content-Type": "audio/wav", "Cache-Control": "private, max-age=3600" } });
   } catch (error) {
     if (error instanceof TtsError) return NextResponse.json({ error: error.message }, { status: error.status });

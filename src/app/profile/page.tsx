@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badges } from "@/components/Badges";
+import { PushToggle } from "@/components/PushToggle";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { badgesFor } from "@/lib/badges";
 import { ProfileForm } from "@/components/profile/ProfileForm";
@@ -134,6 +135,8 @@ export default async function ProfilePage() {
             })}
           </ul>
         </section>
+
+        <PushToggle />
 
         <section aria-labelledby="settings-heading">
           <h2 id="settings-heading" className="mb-3 text-lg font-semibold">

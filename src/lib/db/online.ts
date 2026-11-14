@@ -2,6 +2,7 @@ import "server-only";
 import { Chess, type Square } from "chess.js";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "@/lib/db/mongodb";
+import { notify } from "@/lib/push";
 import type { PieceSetId } from "@/lib/themes";
 import { kFactor, ratingChange } from "@/lib/elo";
 import { applyRatingDelta, countOnlineGame, getPieceSet, getRatingInfo, incrementStats } from "@/lib/db/profiles";
@@ -169,7 +170,9 @@ export async function createGame(userId: string, name: string, choice: Seat | "r
     updatedAt: now,
   };
   const inserted = await col.insertOne(doc as OnlineGameDoc);
-  return String(inserted.insertedId);
+  const gameId = String(inserted.insertedId);
+  notify(invite, { title: "Chess challenge", body: `${name} challenged you to a game.`, url: "/online", tag: `challenge-${gameId}` });
+  return gameId;
 }
 
 /** Takes the empty seat of a waiting game. The update is atomic, so two people can never take the same seat. */
@@ -222,6 +225,8 @@ export async function joinGame(id: string, userId: string, name: string): Promis
   await assertRoom(userId);
   const joined = await takeSeat({ _id }, userId, name, true);
   if (!joined) throw new OnlineError("That game is no longer open.", 409);
+  const creator = joined.white === userId ? joined.black : joined.white;
+  notify(creator, { title: "Your game has started", body: `${name} joined your game.`, url: `/online/${id}`, tag: `game-${id}` });
   return toView(joined, userId);
 }
 
@@ -335,6 +340,12 @@ async function finish(doc: OnlineGameDoc, userId: string, result: Result, reason
   );
   if (!updated) throw new OnlineError("The game has already ended.", 409);
   await settle(updated);
+  notify(updated.white === userId ? updated.black : updated.white, {
+    title: "Game over",
+    body: reason === "resignation" ? "Your opponent resigned." : "The game ended in a draw by agreement.",
+    url: `/online/${updated._id}`,
+    tag: `game-${updated._id}`,
+  });
   return toView(updated, userId);
 }
 
@@ -389,6 +400,13 @@ export async function playMove(
   );
   if (!updated) throw new OnlineError("The board changed. Try again.", 409);
   if (end) await settle(updated);
+  const opponentId = seat === "w" ? updated.black : updated.white;
+  notify(opponentId, {
+    title: end ? "Game over" : "Your move",
+    body: end ? `${end.reason === "checkmate" ? "Checkmate" : "The game ended in a draw"} - open the game to see the result.` : `Your opponent played ${san}.`,
+    url: `/online/${id}`,
+    tag: `game-${id}`,
+  });
   return toView(updated, userId);
 }
 

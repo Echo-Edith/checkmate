@@ -10,17 +10,22 @@ import { getLang } from "@/lib/i18n/server";
 import { isMaintenanceOn, isTester } from "@/lib/db/settings";
 import { PreferenceBoot } from "@/components/PreferenceBoot";
 import { SiteNav } from "@/components/SiteNav";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Checkm8 — Learn chess with an AI tutor",
   description: "An AI-powered chess learning platform: lessons, puzzles, game analysis and a tutor.",
+  manifest: "/manifest.webmanifest",
+  icons: { apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Checkm8", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#0b0b0d",
 };
 
 // Runs before first paint so the saved theme never flashes the wrong colours.
@@ -75,6 +80,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen antialiased">
         <I18nProvider lang={lang}>
           <PreferenceBoot />
+          <ServiceWorkerRegister />
           <Translator lang={lang} />
           <SiteNav />
           {children}

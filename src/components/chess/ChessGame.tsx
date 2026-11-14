@@ -395,6 +395,14 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
   const humanTurn = mode === "pvp" || game.turn() === playerColor;
   const interactive = isLatest && !status.over && pending === null && humanTurn && !thinking;
   const gameInProgress = moves.length > 0 && !status.over;
+  // Tells the auto-updater not to refresh the page in the middle of a local game.
+  useEffect(() => {
+    if (!gameInProgress) return;
+    document.documentElement.dataset.busy = "1";
+    return () => {
+      delete document.documentElement.dataset.busy;
+    };
+  }, [gameInProgress]);
 
   const rows: Array<{ number: number; white: PlayedMove | undefined; black: PlayedMove | undefined }> = [];
   for (let i = 0; i < moves.length; i += 2) {

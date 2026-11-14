@@ -13,10 +13,8 @@ const OFFLINE_PLAY_PATHS = ["/play"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC).then((c) => c.addAll([OFFLINE_URL, "/icon-192.png", "/icon-512.png"])).then(() => {
-      // First install: take over at once. Later updates wait until the user taps "Update".
-      if (!self.registration.active) return self.skipWaiting();
-    }),
+    // Take over at once, so a new version is live as soon as it is found.
+    caches.open(STATIC).then((c) => c.addAll([OFFLINE_URL, "/icon-192.png", "/icon-512.png"])).then(() => self.skipWaiting()),
   );
 });
 

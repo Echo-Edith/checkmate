@@ -2,56 +2,70 @@
 
 import { useEffect, useState } from "react";
 
-/** Registers the service worker and offers a one-tap update when a new version is ready. */
+const CHECK_EVERY_MS = 60_000;
+
+/**
+ * Registers the service worker and applies new versions of the site straight away.
+ * The page refreshes itself as soon as a new version is live, except in the middle of a local
+ * game (so no game is ever lost). Then it waits and refreshes when the game ends.
+ */
 export function ServiceWorkerRegister() {
-  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const [waiting, setWaiting] = useState(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
-    let cancelled = false;
+    // On the very first visit there is no old version to replace, so nothing needs a refresh.
+    const hadController = Boolean(navigator.serviceWorker.controller);
     let reloading = false;
+    let timer: number | undefined;
 
-    const onControllerChange = () => {
+    const isBusy = () => document.documentElement.dataset.busy === "1";
+    const reloadNow = () => {
       if (reloading) return;
       reloading = true;
       window.location.reload();
     };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-
-    const watch = (registration: ServiceWorkerRegistration) => {
-      const check = () => {
-        if (registration.waiting && navigator.serviceWorker.controller && !cancelled) setWaiting(registration.waiting);
-      };
-      check();
-      registration.addEventListener("updatefound", () => {
-        const worker = registration.installing;
-        worker?.addEventListener("statechange", () => {
-          if (worker.state === "installed") check();
-        });
-      });
+    const applyWhenSafe = () => {
+      if (!isBusy()) {
+        reloadNow();
+        return;
+      }
+      setWaiting(true);
+      window.clearInterval(timer);
+      timer = window.setInterval(() => {
+        if (!isBusy()) reloadNow();
+      }, 2000);
     };
+
+    const onControllerChange = () => {
+      if (hadController) applyWhenSafe();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     let registration: ServiceWorkerRegistration | null = null;
     navigator.serviceWorker
       .register("/sw.js", { updateViaCache: "none" })
       .then((reg) => {
         registration = reg;
-        watch(reg);
       })
       .catch(() => {
         // Installing as an app is optional; ignore failures.
       });
 
-    // Look for a new version when the app comes back to the front.
-    const onVisible = () => {
+    // Look for a new version often, and whenever the app comes back to the front.
+    const check = () => {
       if (document.visibilityState === "visible") registration?.update().catch(() => undefined);
     };
-    document.addEventListener("visibilitychange", onVisible);
+    const poll = window.setInterval(check, CHECK_EVERY_MS);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("online", check);
 
     return () => {
-      cancelled = true;
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("online", check);
+      window.clearInterval(poll);
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -62,13 +76,9 @@ export function ServiceWorkerRegister() {
       className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-4 flex max-w-sm items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg"
       style={{ borderColor: "var(--border)", background: "var(--surface)", marginBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
     >
-      <span>A new version of Checkm8 is ready.</span>
-      <button
-        type="button"
-        className="btn-primary rounded-md px-3 py-1.5 text-xs font-semibold"
-        onClick={() => waiting.postMessage({ type: "SKIP_WAITING" })}
-      >
-        Update
+      <span>A new version is ready. It will refresh when your game ends.</span>
+      <button type="button" className="btn-primary rounded-md px-3 py-1.5 text-xs font-semibold" onClick={() => window.location.reload()}>
+        Refresh now
       </button>
     </div>
   );

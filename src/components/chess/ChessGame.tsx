@@ -105,6 +105,23 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
       // Default (on) is fine.
     }
   }, []);
+  // Auto best move: scan each position and show the best move without tapping "Best move" every turn.
+  const [autoBest, setAutoBest] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("checkm8:autobest") === "on") setAutoBest(true);
+    } catch {
+      // Default (off) is fine.
+    }
+  }, []);
+  function changeAutoBest(on: boolean) {
+    setAutoBest(on);
+    try {
+      localStorage.setItem("checkm8:autobest", on ? "on" : "off");
+    } catch {
+      // Not saving is fine.
+    }
+  }
   function changeAssist(on: boolean) {
     setAssist(on);
     try {
@@ -254,6 +271,14 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     setHint(null);
   }, [fen, assistOn]);
 
+  // Auto best move: when it is your turn, scan the new position and show the best move at once.
+  const myTurnNow = game.turn() === playerColor;
+  useEffect(() => {
+    if (!autoBest || !assistOn || engineStatus !== "ready" || status.over || !isLatest || !myTurnNow || pending) return;
+    void requestHint(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBest, assistOn, fen, engineStatus, myTurnNow, isLatest]);
+
   // Sound for each new move (the player's and the bot's) and for the end of the game.
   const plySound = useRef(moves.length);
   useEffect(() => {
@@ -310,9 +335,9 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
     setOrientation(mode === "computer" ? nextColor : "w");
   }
 
-  async function requestHint() {
+  async function requestHint(automatic = false) {
     // A second tap hides the hint.
-    if (hint) {
+    if (hint && !automatic) {
       setHint(null);
       return;
     }
@@ -335,7 +360,7 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
       const verdict = mine >= 75 ? "You are clearly better." : mine >= 56 ? "You are a little better." : mine >= 44 ? "The position is balanced." : mine >= 25 ? "You are a little worse." : "This is a hard position.";
       const text = `Try ${san}. ${verdict}`;
       setHint({ text, from: move.from, to: move.to });
-      voice.say(text);
+      if (!automatic) voice.say(text);
     } catch {
       if (fenRef.current === asked) setHint(null);
     } finally {
@@ -483,10 +508,21 @@ export function ChessGame({ initialMode = "computer", initialLevel = 1, initialC
             className={buttonClass}
             style={borderStyle}
             disabled={engineStatus !== "ready" || hintBusy || status.over || !humanTurn || !isLatest}
-            onClick={requestHint}
+            onClick={() => void requestHint()}
           >
             {hintBusy ? "…" : hint ? t("game.hide") : t("game.best")}
           </button>
+          )}
+          {assistOn && (
+            <button
+              type="button"
+              className={buttonClass}
+              style={{ ...borderStyle, ...(autoBest ? { background: "var(--surface)", fontWeight: 600 } : {}) }}
+              aria-pressed={autoBest}
+              onClick={() => changeAutoBest(!autoBest)}
+            >
+              {autoBest ? "Auto best move: On" : "Auto best move: Off"}
+            </button>
           )}
           <button
             type="button"

@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (missing.length > 0) {
       const language = LANGS.find((item) => item.id === lang)?.ai ?? "English";
       const system = `You translate the interface text of a chess learning website from English into ${language}. You get a JSON array of strings. Reply with only a JSON array of strings, the same length and order. Rules: keep placeholders like {1} and {2} exactly; keep chess move notation (like Nf3, e4, O-O), the name Checkm8, symbols and line breaks as they are; keep the tone short and friendly; if a text is already in ${language}, return it unchanged.`;
-      const raw = await readAll(await streamGemini(system, JSON.stringify(missing), { maxOutputTokens: 6000, json: true }));
+      const raw = await readAll(await streamGemini(system, JSON.stringify(missing), { maxOutputTokens: 6000, json: true, source: "translate" }));
       let translated: unknown;
       try {
         translated = JSON.parse(raw);

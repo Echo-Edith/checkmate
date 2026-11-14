@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       prompt = buildUserPrompt({ request: data });
     }
 
-    const stream = await streamGemini(buildSystemPrompt(prompt.persona, LANGS.find((item) => item.id === lang)?.ai), prompt.text);
+    const stream = await streamGemini(buildSystemPrompt(prompt.persona, LANGS.find((item) => item.id === lang)?.ai), prompt.text, { source: `tutor (${data.kind})`, userId: user.id });
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
     });

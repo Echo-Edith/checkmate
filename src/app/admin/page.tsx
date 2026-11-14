@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaintenanceToggle } from "@/components/admin/MaintenanceToggle";
 import { AiUsageSetting } from "@/components/admin/AiUsageSetting";
+import { AiErrorLog } from "@/components/admin/AiErrorLog";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { getOwner } from "@/lib/admin-auth";
 
@@ -19,6 +20,7 @@ export default async function AdminPage() {
       </p>
       <MaintenanceToggle />
       <AiUsageSetting />
+      <AiErrorLog />
       <AdminUsers />
     </main>
   );

@@ -41,7 +41,7 @@ async function writeBody(n: number, lang: Lang): Promise<string[]> {
   const language = LANGS.find((item) => item.id === lang)?.ai ?? "English";
   const system = `You write short chess lessons for learners. Write in ${language}. Plain text only, no markdown, no headings, no lists. Exactly 3 short paragraphs separated by a blank line, about 120 words in total. Simple words. Use standard algebraic notation (like Nf3) only for moves you are sure are legal. Never invent facts.`;
   const angle = topic.round > 0 ? ` This is part ${topic.round + 1} of the topic, so cover a different and slightly deeper angle than a basic intro.` : "";
-  const text = await readAll(await streamGemini(system, `Lesson topic: ${topic.title}. Cover: ${topic.idea}.${angle}`));
+  const text = await readAll(await streamGemini(system, `Lesson topic: ${topic.title}. Cover: ${topic.idea}.${angle}`, { source: "lesson" }));
   const parts = text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   if (parts.length === 0) throw new Error("Empty lesson");
   return parts.slice(0, 4);

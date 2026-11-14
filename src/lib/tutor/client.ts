@@ -27,9 +27,9 @@ export async function askTutor(request: TutorRequest, onText?: (textSoFar: strin
 
   if (!response.ok) {
     const data = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new TutorClientError(data.error ?? "The tutor could not answer right now.", response.status);
+    throw new TutorClientError(data.error ?? "The AI didn't respond. Please try again in a moment.", response.status);
   }
-  if (!response.body) throw new TutorClientError("The tutor returned an empty answer.", 502);
+  if (!response.body) throw new TutorClientError("The AI didn't respond. Please try again in a moment.", 502);
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -46,6 +46,6 @@ export async function askTutor(request: TutorRequest, onText?: (textSoFar: strin
   }
 
   const answer = text.trim();
-  if (!answer) throw new TutorClientError("The tutor returned an empty answer. Please try again.", 502);
+  if (!answer) throw new TutorClientError("The AI didn't respond. Please try again in a moment.", 502);
   return answer;
 }

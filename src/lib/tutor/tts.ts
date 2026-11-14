@@ -1,4 +1,5 @@
 import "server-only";
+import { logAiError } from "@/lib/db/ai-errors";
 import type { Persona } from "@/lib/tutor/schema";
 
 /** Gemini text-to-speech voices and the way each tutor should sound. */
@@ -61,38 +62,58 @@ export async function synthesizeSpeech(text: string, persona: Persona): Promise<
     },
   };
 
+  const attempts: string[] = [];
+  const giveUp = async (status: number, summary: string): Promise<never> => {
+    await logAiError({ source: "voice", status, summary, attempts });
+    throw new TtsError("The voice didn't respond. Please try again in a moment.", status === 429 ? 429 : 502);
+  };
+
   let lastStatus = 502;
   for (const model of TTS_MODELS) {
-    let response: Response;
-    try {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(20000),
-      });
-    } catch {
-      throw new TtsError("Voice took too long.", 504);
-    }
-    lastStatus = response.status;
-    if (response.status === 404) continue;
-    if (!response.ok) {
-      const reason = ((await response.json().catch(() => ({}))) as { error?: { message?: string } }).error?.message ?? "";
-      console.error("Gemini TTS failed:", response.status, reason.slice(0, 300));
-      throw new TtsError("Voice is unavailable.", response.status === 429 ? 429 : 502);
-    }
+    // Two tries per model: a slow or overloaded answer is tried again before giving up.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const t0 = Date.now();
+      let response: Response;
+      try {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(12000),
+        });
+      } catch {
+        attempts.push(`${model}: timeout or network failure after ${Date.now() - t0}ms`);
+        lastStatus = 504;
+        continue;
+      }
+      lastStatus = response.status;
+      if (response.status === 404) {
+        attempts.push(`${model}: not found`);
+        break;
+      }
+      if (!response.ok) {
+        const reason = ((await response.json().catch(() => ({}))) as { error?: { message?: string } }).error?.message ?? "";
+        attempts.push(`${model}: HTTP ${response.status} ${reason.slice(0, 150)}`);
+        // Rate limit or Google-side error: try again. Anything else will not improve.
+        if (response.status === 429 || response.status >= 500) continue;
+        return giveUp(response.status, `Voice request rejected (HTTP ${response.status}): ${reason.slice(0, 200)}`);
+      }
 
-    const data = (await response.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
-    };
-    const inline = data.candidates?.[0]?.content?.parts?.find((part) => part.inlineData?.data)?.inlineData;
-    if (!inline?.data) throw new TtsError("Voice returned no audio.", 502);
+      const data = (await response.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
+      };
+      const inline = data.candidates?.[0]?.content?.parts?.find((part) => part.inlineData?.data)?.inlineData;
+      if (!inline?.data) {
+        attempts.push(`${model}: answered without audio`);
+        continue;
+      }
 
-    const rate = Number(/rate=(\d+)/.exec(inline.mimeType ?? "")?.[1] ?? 24000);
-    const wav = pcmToWav(Buffer.from(inline.data, "base64"), rate);
-    if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
-    cache.set(key, wav);
-    return wav;
+      const rate = Number(/rate=(\d+)/.exec(inline.mimeType ?? "")?.[1] ?? 24000);
+      const wav = pcmToWav(Buffer.from(inline.data, "base64"), rate);
+      if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
+      cache.set(key, wav);
+      return wav;
+    }
   }
-  throw new TtsError("No voice model found.", lastStatus === 404 ? 502 : lastStatus);
+  return giveUp(lastStatus === 404 ? 502 : lastStatus, "The voice service did not return audio after retrying.");
 }
